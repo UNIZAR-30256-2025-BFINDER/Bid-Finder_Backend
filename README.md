@@ -1,5 +1,5 @@
 
-# BidFinder -- Backend
+# BidFinder - Backend
 
 Este repositorio contiene el código fuente del backend para **BidFinder**, la plataforma que centraliza, procesa y visualiza subastas del BOE utilizando Inteligencia Artificial.
 
