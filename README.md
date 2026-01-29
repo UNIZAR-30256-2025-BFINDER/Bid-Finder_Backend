@@ -11,7 +11,7 @@ El objetivo de esta API es ingerir datos de fuentes públicas (XML del BOE), pro
 
 Para mantener la consistencia y calidad en el equipo, utilizamos las siguientes herramientas obligatorias:
 
-* **Runtime:** Node.js (versión 20+ recomendada).
+* **Runtime:** Node.js (versión 22).
 * **Framework:** Express.js.
 * **Linting & Formatting:**
 * **ESLint:** Para asegurar reglas de código y evitar errores lógicos.
