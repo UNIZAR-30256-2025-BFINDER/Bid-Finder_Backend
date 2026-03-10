@@ -1,0 +1,14 @@
+FROM node:20
+
+WORKDIR /app
+
+RUN npm install -g nodemon [cite: 600]
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["nodemon", "./bin/www"]
