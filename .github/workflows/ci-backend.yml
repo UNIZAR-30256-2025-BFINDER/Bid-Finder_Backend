@@ -1,0 +1,33 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ "dev", "main" ]
+  pull_request:
+    branches: [ "dev", "main" ]
+
+jobs:
+  integracion-continua:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout del código
+      uses: actions/checkout@v4
+
+    - name: Configurar Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Instalar dependencias
+      run: npm ci
+
+    - name: Pasar el Linter (ESLint)
+      run: npx eslint .
+
+    - name: Ejecutar Tests Unitarios (Jest)
+      run: npm run test
+
+    - name: Test de construcción de Docker
+      run: docker build -t bidfinder-backend:ci-test .
