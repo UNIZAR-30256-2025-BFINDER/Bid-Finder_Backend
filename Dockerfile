@@ -2,7 +2,7 @@ FROM node:20
 
 WORKDIR /app
 
-RUN npm install -g nodemon [cite: 600]
+RUN npm install -g nodemon 
 
 COPY package*.json ./
 RUN npm install
