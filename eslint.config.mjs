@@ -3,7 +3,7 @@ import pluginJs from "@eslint/js";
 
 export default [
   {
-    ignores: ["node_modules/", "temp_xmls/"]
+    ignores: ["node_modules/"]
   },
   {
     files: ["**/*.js"],
@@ -11,6 +11,14 @@ export default [
       sourceType: "commonjs",
       globals: {
         ...globals.node
+      }
+    }
+  },
+  {
+    files: ["tests/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...globals.jest
       }
     }
   },
