@@ -1,4 +1,14 @@
 function createSubastasController(subastasService) {
+
+    function getAllSubastas(req, res) {
+      const subastas = subastasService.getAllSubastas();  
+      return res.status(200).json({
+        status: 'success',
+        data: subastas
+      });
+    }
+
+
     function getSubastaById(req, res) {
       const id = Number(req.params.id);
   
@@ -29,7 +39,8 @@ function createSubastasController(subastasService) {
     }
   
     return {
-      getSubastaById
+      getSubastaById,
+      getAllSubastas
     };
   }
   

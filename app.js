@@ -3,6 +3,9 @@ var express = require('express');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
+var swaggerUi = require('swagger-ui-express');
+var swaggerJsDoc = require('swagger-jsdoc');
+
 var indexRouter = require('./app_server/routes/index');
 
 var app = express();
@@ -11,6 +14,27 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+const swaggerOptions = {
+  swaggerDefinition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'API Bid Finder',
+      version: '1.0.0',
+      description: 'Documentación de los endpoints de Bfinder Backend',
+    },
+    servers: [
+      {
+        url: 'http://localhost:3000', 
+        description: 'Servidor Bfinder Backend'
+      }
+    ]
+  },
+  apis: ['./app_server/routes/*.js'], 
+};
+
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // Rutas de la API
 app.use('/', indexRouter);
