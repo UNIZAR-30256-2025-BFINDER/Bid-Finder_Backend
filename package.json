@@ -6,7 +6,9 @@
     "start": "node ./bin/www",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "jest"
+    "test": "jest",
+    "setup-cron": "./bin/setup-cron.sh",
+    "remove-cron": "./bin/remove-cron.sh"
   },
   "dependencies": {
     "axios": "^1.13.6",
