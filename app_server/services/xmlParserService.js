@@ -3,13 +3,14 @@
  * No contiene lógica de negocio; utiliza funciones inyectadas (strategy) para filtrar y mapear.
  */
 
-const { XMLParser } = require('fast-xml-parser');
+const { XMLParser } = require("fast-xml-parser");
 
 const parserConfig = {
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
     // Forzamos que estas etiquetas sean siempre arrays para facilitar la iteración
-    isArray: (name) => ['seccion', 'departamento', 'epigrafe', 'item'].indexOf(name) !== -1
+    isArray: (name) =>
+        ["seccion", "departamento", "epigrafe", "item"].indexOf(name) !== -1,
 };
 
 const parser = new XMLParser(parserConfig);
@@ -28,19 +29,23 @@ function extractItems(sumarioXmlString, filterCondition) {
     const diario = jsonObj.response?.data?.sumario?.diario;
     if (!diario || !diario.seccion) return itemsEncontrados;
 
-    diario.seccion.forEach(seccion => {
+    diario.seccion.forEach((seccion) => {
         if (!seccion.departamento) return;
 
-        seccion.departamento.forEach(departamento => {
+        seccion.departamento.forEach((departamento) => {
             // Extracción para items directos bajo departamento
             if (departamento.item) {
-                departamento.item.forEach(item => {
+                departamento.item.forEach((item) => {
                     if (filterCondition(seccion, departamento, null, item)) {
-                        if (!itemsEncontrados.find(i => i.id === item.identificador)) {
+                        if (
+                            !itemsEncontrados.find(
+                                (i) => i.id === item.identificador,
+                            )
+                        ) {
                             itemsEncontrados.push({
                                 id: item.identificador,
                                 titulo: item.titulo,
-                                urlXml: item.url_xml
+                                urlXml: item.url_xml,
                             });
                         }
                     }
@@ -49,15 +54,26 @@ function extractItems(sumarioXmlString, filterCondition) {
 
             // Extracción para items agrupados bajo epígrafes
             if (departamento.epigrafe) {
-                departamento.epigrafe.forEach(epigrafe => {
+                departamento.epigrafe.forEach((epigrafe) => {
                     if (epigrafe.item) {
-                        epigrafe.item.forEach(item => {
-                            if (filterCondition(seccion, departamento, epigrafe, item)) {
-                                if (!itemsEncontrados.find(i => i.id === item.identificador)) {
+                        epigrafe.item.forEach((item) => {
+                            if (
+                                filterCondition(
+                                    seccion,
+                                    departamento,
+                                    epigrafe,
+                                    item,
+                                )
+                            ) {
+                                if (
+                                    !itemsEncontrados.find(
+                                        (i) => i.id === item.identificador,
+                                    )
+                                ) {
                                     itemsEncontrados.push({
                                         id: item.identificador,
                                         titulo: item.titulo,
-                                        urlXml: item.url_xml
+                                        urlXml: item.url_xml,
                                     });
                                 }
                             }
@@ -81,18 +97,49 @@ function extractItems(sumarioXmlString, filterCondition) {
 function parseAnuncioIndividual(xmlString, mapFn) {
     const jsonObj = parser.parse(xmlString);
     const documento = jsonObj.documento;
-    
+
     if (!documento) {
-        throw new Error("El XML proporcionado no tiene la etiqueta raíz <documento>.");
+        throw new Error(
+            "El XML proporcionado no tiene la etiqueta raíz <documento>.",
+        );
     }
     if (!documento.metadatos || !documento.metadatos.identificador) {
-        throw new Error("No se ha encontrado el identificador único en los metadatos del XML.");
+        throw new Error(
+            "No se ha encontrado el identificador único en los metadatos del XML.",
+        );
     }
 
     return mapFn(documento);
 }
 
+function extraerTextoDesdeTextoNode(textoNode) {
+    if (!textoNode) return "";
+    let parrafos = textoNode.p;
+    if (!parrafos) return "";
+    const arrayParrafos = Array.isArray(parrafos) ? parrafos : [parrafos];
+    return arrayParrafos
+        .map((p) => p["#text"] || "")
+        .filter((text) => text.trim() !== "")
+        .join("\n");
+}
+
+function subastaMapper(documento) {
+    const metadatos = documento.metadatos || {};
+    return {
+        id: metadatos.identificador || "",
+        titulo: metadatos.titulo || "",
+        fechaPublicacion: metadatos.fecha_publicacion || "",
+        urlPdf: metadatos.url_pdf || "",
+        texto: extraerTextoDesdeTextoNode(documento.texto),
+    };
+}
+
+function parseSubastaXml(xmlString) {
+    return parseAnuncioIndividual(xmlString, subastaMapper);
+}
+
 module.exports = {
     extractItems,
-    parseAnuncioIndividual
+    parseAnuncioIndividual,
+    parseSubastaXml,
 };

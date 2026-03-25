@@ -249,3 +249,37 @@ crontab -e
 npm remove-cron
 
 ```
+
+### Extracción de Información del XML
+
+El XML de subasta del BOE contiene varios campos, pero los más relevantes para nuestro proceso de ingesta son:
+
+- `<identificador>`: Un identificador único para cada subasta.
+- `<titulo>`: El título de la subasta.
+- `<fecha_publicacion>`: La fecha en que se publicó la subasta.
+- `<url_pdf>`: La URL relativa al PDF del anuncio.
+- `<texto>`: El contenido textual completo de la subasta, que puede contener múltiples párrafos.
+
+## Estructura de datos intermedia (JSON)
+
+Tras el parseo de un XML de subasta del BOE, se genera un objeto JSON con la siguiente estructura:
+
+| Campo              | Tipo   | Descripción                                                                                                                            |
+| ------------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`               | string | Identificador único de la subasta, extraído del campo `<identificador>` del XML. Ejemplo: `"BOE-B-2026-112"`.                          |
+| `titulo`           | string | Título de la subasta, tomado del campo `<titulo>`.                                                                                     |
+| `fechaPublicacion` | string | Fecha de publicación en formato `YYYYMMDD`, extraída de `<fecha_publicacion>`.                                                         |
+| `urlPdf`           | string | URL relativa al PDF del anuncio, extraída de `<url_pdf>`.                                                                              |
+| `texto`            | string | Contenido textual completo de la subasta, concatenando todos los párrafos (`<p>`) dentro de `<texto>`. Se separan con saltos de línea. |
+
+### Ejemplo de objeto generado
+
+```json
+{
+    "id": "BOE-B-2026-112",
+    "titulo": "U.R. SUBASTAS ANDALUCIA 41",
+    "fechaPublicacion": "20260103",
+    "urlPdf": "/boe/dias/2026/01/03/pdfs/BOE-B-2026-112.pdf",
+    "texto": "Anuncio de subasta administrativa de la Agencia Estatal de Administración Tributaria, con número de referencia S2025R4186001497.\nDirección electrónica: https://subastas.boe.es/ds.php?id=SUB-AT-2025-25R4186001497\nFecha de inicio de la subasta: La subasta se iniciará en la fecha indicada a través de la dirección electrónica anterior.\nSevilla, 29 de diciembre de 2025.- Jefe del Equipo Regional de Recaudación"
+}
+```
