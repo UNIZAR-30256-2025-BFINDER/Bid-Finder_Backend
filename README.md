@@ -272,7 +272,7 @@ Tras el parseo de un XML de subasta del BOE, se genera un objeto JSON con la sig
 | `urlPdf`           | string | URL relativa al PDF del anuncio, extraída de `<url_pdf>`.                                                                              |
 | `texto`            | string | Contenido textual completo de la subasta, concatenando todos los párrafos (`<p>`) dentro de `<texto>`. Se separan con saltos de línea. |
 
-### Ejemplo de objeto generado
+## Ejemplo de objeto generado
 
 ```json
 {
@@ -283,3 +283,28 @@ Tras el parseo de un XML de subasta del BOE, se genera un objeto JSON con la sig
     "texto": "Anuncio de subasta administrativa de la Agencia Estatal de Administración Tributaria, con número de referencia S2025R4186001497.\nDirección electrónica: https://subastas.boe.es/ds.php?id=SUB-AT-2025-25R4186001497\nFecha de inicio de la subasta: La subasta se iniciará en la fecha indicada a través de la dirección electrónica anterior.\nSevilla, 29 de diciembre de 2025.- Jefe del Equipo Regional de Recaudación"
 }
 ```
+
+## ALmacenamiento en la base de datos MongoDB
+
+## Colección `subastas`
+
+| Campo              | Tipo   | Descripción                                                                    |
+| ------------------ | ------ | ------------------------------------------------------------------------------ |
+| `id`               | string | Identificador único del anuncio en el BOE (ej: `BOE-B-2026-112`). Clave única. |
+| `titulo`           | string | Título de la subasta.                                                          |
+| `fechaPublicacion` | string | Fecha de publicación en formato `YYYYMMDD`.                                    |
+| `urlPdf`           | string | URL relativa al PDF del anuncio.                                               |
+| `texto`            | string | Texto completo de la subasta (párrafos concatenados con `\n`).                 |
+| `rawXml`           | string | XML original recibido del BOE.                                                 |
+| `fechaExtraccion`  | date   | Marca de tiempo de cuándo se guardó la subasta por primera vez.                |
+| `createdAt`        | date   | Fecha de creación del documento (automática).                                  |
+| `updatedAt`        | date   | Fecha de última actualización (automática).                                    |
+
+## Índices
+
+- `id`: índice único (por defecto en MongoDB)
+- `fechaPublicacion`: índice descendente para ordenar por fecha.
+
+## Operaciones de guardado
+
+- `saveSubastas` (servicio) realiza un `bulkWrite` con `upsert` basado en el campo `id`, garantizando idempotencia.
