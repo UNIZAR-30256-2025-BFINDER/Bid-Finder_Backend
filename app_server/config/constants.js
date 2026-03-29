@@ -13,5 +13,9 @@ module.exports = {
             PROCESADO: 'PROCESADO',
             ERROR: 'ERROR'
         }
+    },
+    AI_WORKER: {
+        BATCH_SIZE: 10,
+        DELAY_MS: 12_000,
     }
 };
