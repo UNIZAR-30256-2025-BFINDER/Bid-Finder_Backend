@@ -1,12 +1,14 @@
 var express = require('express');
 var router = express.Router();
 
+const createSubastasRepository = require('../repositories/subastasRepository');
 const createSubastasService = require('../services/subastasService');
 const createSubastasController = require('../controllers/subastasController');
 
-// Instanciamos service y controller
-const subastasService = createSubastasService();
+const subastasRepository = createSubastasRepository();
+const subastasService = createSubastasService(subastasRepository);
 const subastasController = createSubastasController(subastasService);
+
 /**
  * @swagger
  * components:
@@ -44,7 +46,7 @@ const subastasController = createSubastasController(subastasService);
  * @swagger
  * /subastas:
  *   get:
- *     summary: Devuelve una lista con todas las subastas
+ *     summary: Devuelve una lista con todas las subastas listas para consumo
  *     tags: [Subastas]
  *     responses:
  *       200:

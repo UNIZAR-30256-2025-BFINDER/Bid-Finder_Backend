@@ -1,13 +1,11 @@
-const Subasta = require('../models/subasta');
-
-function createSubastasService() {
+function createSubastasService(subastasRepository) {
 
   /**
    * Obtiene todas las subastas almacenadas en la base de datos real.
    * @returns {Promise<Array>} Lista de subastas.
    */
   async function getAllSubastas() {
-    return await Subasta.find({}).sort({ fechaPublicacion: -1 });
+    return await subastasRepository.findAll();
   }
 
   /**
@@ -16,7 +14,7 @@ function createSubastasService() {
    * @returns {Promise<Object|null>} La subasta encontrada o null si no se encuentra.
    */
   async function getSubastaById(id) {
-    return await Subasta.findOne({ id: id });
+    return await subastasRepository.findById(id);
   }
 
   return {

@@ -25,6 +25,36 @@ const subastaSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        estado_ia: {
+            type: String,
+            enum: ['PENDIENTE', 'PROCESADO', 'ERROR'],
+            default: 'PENDIENTE',
+            index: true 
+        },
+        precio_salida: {
+            type: Number,
+            default: null,
+        },
+        valor_tasacion: {
+            type: Number,
+            default: null,
+        },
+        direccion: {
+            type: String,
+            default: null,
+        },
+        referencia_catastral: {
+            type: String,
+            default: null,
+        },
+        titulo_resumido: {
+            type: String,
+            default: null,
+        },
+        resumen: {
+            type: String,
+            default: null,
+        },
         // XML original recibido
         rawXml: {
             type: String,
