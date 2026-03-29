@@ -33,6 +33,19 @@ const subastasRules = {
     mapFn: (documento) => {
         const metadatos = documento.metadatos || {};
         const textoLimpio = extraerTextoDesdeTextoNode(documento.texto);
+        const textoMayus = textoLimpio.toUpperCase();
+        
+        const esEnlace = textoMayus.includes('HTTPS://SUBASTAS.BOE.ES') && textoLimpio.length < 600;
+        
+        const esVehiculo = textoMayus.includes('VEHÍCULO') || 
+                           textoMayus.includes('VEHICULO') || 
+                           textoMayus.includes('MATRÍCULA') || 
+                           textoMayus.includes('BASTIDOR');
+
+        if (esEnlace || esVehiculo) {
+            return null; 
+        }
+
         const rawXml = typeof documento.texto === 'object' ? JSON.stringify(documento.texto) : String(documento.texto);
 
         return {
@@ -43,6 +56,48 @@ const subastasRules = {
             texto: textoLimpio,
             rawXml: rawXml
         };
+    },
+
+    extractSumarioStrategy: (jsonObj) => {
+        const itemsEncontrados = [];
+        const diario = jsonObj.response?.data?.sumario?.diario;
+        if (!diario || !diario.seccion) return itemsEncontrados;
+
+        diario.seccion.forEach((seccion) => {
+            if (!seccion.departamento) return;
+            seccion.departamento.forEach((departamento) => {
+                if (departamento.item) {
+                    departamento.item.forEach((item) => {
+                        if (subastasRules.filterCondition(seccion, departamento, null, item)) {
+                            if (!itemsEncontrados.find((i) => i.id === item.identificador)) {
+                                itemsEncontrados.push({ id: item.identificador, titulo: item.titulo, urlXml: item.url_xml });
+                            }
+                        }
+                    });
+                }
+                if (departamento.epigrafe) {
+                    departamento.epigrafe.forEach((epigrafe) => {
+                        if (epigrafe.item) {
+                            epigrafe.item.forEach((item) => {
+                                if (subastasRules.filterCondition(seccion, departamento, epigrafe, item)) {
+                                    if (!itemsEncontrados.find((i) => i.id === item.identificador)) {
+                                        itemsEncontrados.push({ id: item.identificador, titulo: item.titulo, urlXml: item.url_xml });
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        });
+        return itemsEncontrados;
+    },
+
+    extractAnuncioStrategy: (jsonObj) => {
+        const documento = jsonObj.documento;
+        if (!documento) throw new Error("El XML proporcionado no tiene la etiqueta raíz <documento>.");
+        if (!documento.metadatos || !documento.metadatos.identificador) throw new Error("No se ha encontrado el identificador único.");
+        return subastasRules.mapFn(documento);
     }
 };
 

@@ -1,36 +1,65 @@
-const fs = require("fs");
-const path = require("path");
-const { parseAnuncioIndividual } = require("../../app_server/services/xmlParserService");
+const { processXml } = require("../../app_server/services/xmlParserService");
 const subastasRules = require("../../app_server/config/subastasRules");
 
-describe("parseAnuncioIndividual (con subastasRules)", () => {
+describe("processXml (con extractAnuncioStrategy)", () => {
+    
+    const validXmlString = `
+    <documento>
+        <metadatos>
+            <identificador>BOE-B-2026-999</identificador>
+            <titulo>U.R. SUBASTAS MADRID</titulo>
+            <fecha_publicacion>20260328</fecha_publicacion>
+            <url_pdf>/boe/dias/2026/03/28/pdfs/BOE-B-2026-999.pdf</url_pdf>
+        </metadatos>
+        <texto>
+            <p class="parrafo">Subasta de una vivienda urbana situada en la Calle Gran Vía, 1, Madrid.</p>
+            <p class="parrafo">Referencia catastral: 1234567AB9999C0001DE.</p>
+            <p class="parrafo">Valor de tasación: 200.000 euros.</p>
+            <p class="parrafo">Este es un texto válido para simular una subasta real de inmueble que no será filtrada por nuestras reglas.</p>
+        </texto>
+    </documento>
+    `;
+
     const expectedOutput = {
-        id: "BOE-B-2026-112",
-        titulo: "U.R. SUBASTAS ANDALUCIA 41",
-        fechaPublicacion: 20260103,
-        urlPdf: "/boe/dias/2026/01/03/pdfs/BOE-B-2026-112.pdf",
-        texto: "Anuncio de subasta administrativa de la Agencia Estatal de Administración Tributaria, con número de referencia S2025R4186001497.\nDirección electrónica: https://subastas.boe.es/ds.php?id=SUB-AT-2025-25R4186001497\nFecha de inicio de la subasta: La subasta se iniciará en la fecha indicada a través de la dirección electrónica anterior.\nSevilla, 29 de diciembre de 2025.- Jefe del Equipo Regional de Recaudación.",
+        id: "BOE-B-2026-999",
+        titulo: "U.R. SUBASTAS MADRID",
+        fechaPublicacion: 20260328, 
+        urlPdf: "/boe/dias/2026/03/28/pdfs/BOE-B-2026-999.pdf",
+        texto: "Subasta de una vivienda urbana situada en la Calle Gran Vía, 1, Madrid.\nReferencia catastral: 1234567AB9999C0001DE.\nValor de tasación: 200.000 euros.\nEste es un texto válido para simular una subasta real de inmueble que no será filtrada por nuestras reglas.",
         rawXml: expect.any(String)
     };
 
-    it("debería parsear el XML de ejemplo de subasta y aplicar el mapper", () => {
-        const xmlPath = path.join(__dirname, "../utils/sample_subasta.xml");
-        const xmlString = fs.readFileSync(xmlPath, "utf8");
-        
-        const result = parseAnuncioIndividual(xmlString, subastasRules.mapFn);
+    it("1. Debería parsear un XML VÁLIDO de inmueble y aplicar el mapper", () => {
+        const result = processXml(validXmlString, subastasRules.extractAnuncioStrategy);
         expect(result).toEqual(expectedOutput);
     });
 
-    it("debería lanzar un error si falta el identificador en los metadatos", () => {
+    it("2. Debería devolver null (FILTRAR) si es un mero enlace a la Agencia Tributaria", () => {
+        const xmlBasura = `
+        <documento>
+            <metadatos>
+                <identificador>BOE-BASURA</identificador>
+                <titulo>BASURA</titulo>
+            </metadatos>
+            <texto>
+                <p class="parrafo">Anuncio corto. Dirección electrónica: https://subastas.boe.es/ds.php</p>
+            </texto>
+        </documento>`;
+        
+        const result = processXml(xmlBasura, subastasRules.extractAnuncioStrategy);
+        expect(result).toBeNull(); 
+    });
+
+    it("3. Debería lanzar un error si falta el identificador en los metadatos", () => {
         const xmlSinId = "<documento><metadatos></metadatos></documento>";
-        expect(() => parseAnuncioIndividual(xmlSinId, subastasRules.mapFn)).toThrow(
+        expect(() => processXml(xmlSinId, subastasRules.extractAnuncioStrategy)).toThrow(
             "No se ha encontrado el identificador único."
         );
     });
 
-    it("debería lanzar un error si falta la etiqueta raíz <documento>", () => {
+    it("4. Debería lanzar un error si falta la etiqueta raíz <documento>", () => {
         const xmlInvalido = "<otraRaiz></otraRaiz>";
-        expect(() => parseAnuncioIndividual(xmlInvalido, subastasRules.mapFn)).toThrow(
+        expect(() => processXml(xmlInvalido, subastasRules.extractAnuncioStrategy)).toThrow(
             "El XML proporcionado no tiene la etiqueta raíz <documento>."
         );
     });

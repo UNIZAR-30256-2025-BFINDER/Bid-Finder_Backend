@@ -8,62 +8,21 @@ const { XMLParser } = require("fast-xml-parser");
 const parserConfig = {
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
-    isArray: (name) => ["seccion", "departamento", "epigrafe", "item"].indexOf(name) !== -1,
+    isArray: (name) => ["seccion", "departamento", "epigrafe", "item", "p"].indexOf(name) !== -1,
 };
 
 const parser = new XMLParser(parserConfig);
 
-function extractItems(sumarioXmlString, filterCondition) {
-    const jsonObj = parser.parse(sumarioXmlString);
-    const itemsEncontrados = [];
-
-    const diario = jsonObj.response?.data?.sumario?.diario;
-    if (!diario || !diario.seccion) return itemsEncontrados;
-
-    diario.seccion.forEach((seccion) => {
-        if (!seccion.departamento) return;
-
-        seccion.departamento.forEach((departamento) => {
-            if (departamento.item) {
-                departamento.item.forEach((item) => {
-                    if (filterCondition(seccion, departamento, null, item)) {
-                        if (!itemsEncontrados.find((i) => i.id === item.identificador)) {
-                            itemsEncontrados.push({ id: item.identificador, titulo: item.titulo, urlXml: item.url_xml });
-                        }
-                    }
-                });
-            }
-
-            if (departamento.epigrafe) {
-                departamento.epigrafe.forEach((epigrafe) => {
-                    if (epigrafe.item) {
-                        epigrafe.item.forEach((item) => {
-                            if (filterCondition(seccion, departamento, epigrafe, item)) {
-                                if (!itemsEncontrados.find((i) => i.id === item.identificador)) {
-                                    itemsEncontrados.push({ id: item.identificador, titulo: item.titulo, urlXml: item.url_xml });
-                                }
-                            }
-                        });
-                    }
-                });
-            }
-        });
-    });
-
-    return itemsEncontrados;
-}
-
-function parseAnuncioIndividual(xmlString, mapFn) {
+/**
+ * Parsea un XML y delega la extracción/mapeo a una función externa.
+ * @param {string} xmlString - El XML crudo.
+ * @param {Function} strategyFn - La función que sabe cómo navegar el JSON resultante.
+ */
+function processXml(xmlString, strategyFn) {
     const jsonObj = parser.parse(xmlString);
-    const documento = jsonObj.documento;
-
-    if (!documento) throw new Error("El XML proporcionado no tiene la etiqueta raíz <documento>.");
-    if (!documento.metadatos || !documento.metadatos.identificador) throw new Error("No se ha encontrado el identificador único.");
-
-    return mapFn(documento);
+    return strategyFn(jsonObj);
 }
 
 module.exports = {
-    extractItems,
-    parseAnuncioIndividual,
+    processXml
 };
