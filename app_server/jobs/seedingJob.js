@@ -9,16 +9,20 @@ const logger = require('../utils/logger');
 const subastasRules = require('../config/subastasRules');
 
 const connectDB = require('../config/database');
-const { saveSubastas } = require('../services/subastasPersistenceService'); 
+const createSubastasRepository = require('../repositories/subastasRepository');
 
 const xmlParserService = require('../services/xmlParserService');
 const createBoeService = require('../services/boeHttpService');
 const createIngestionController = require('../controllers/ingestionController');
 const createSeedingController = require('../controllers/seedingController');
 
+const { runWorker } = require('./aiWorkerJob'); 
+
 const httpsAgent = new https.Agent({ keepAlive: true });
 const httpClient = axios.create({ httpsAgent, timeout: BOE.TIMEOUT_MS });
 const boeService = createBoeService(httpClient, BOE, logger);
+
+const subastasRepository = createSubastasRepository();
 
 const ingestionController = createIngestionController(
     boeService,
@@ -26,7 +30,7 @@ const ingestionController = createIngestionController(
     logger,
     { ...BOE, ...INGESTION },
     subastasRules,
-    { saveSubastas }
+    subastasRepository
 );
 
 const seedingController = createSeedingController(ingestionController, logger);
@@ -43,7 +47,10 @@ if (require.main === module) {
     connectDB().then(() => {
         return seedingController.runSeeding(daysToSeed);
     }).then(() => {
-        logger.info('[Seeding Job] Finalizado correctamente.');
+        logger.info('[Seeding Job] Ingesta histórica finalizada. Arrancando AI Worker para vaciar la cola...');
+        return runWorker();
+    }).then(() => {
+        logger.info('[Seeding Job] Proceso completo (Ingesta + IA) finalizado correctamente.');
         process.exit(0);
     }).catch(err => {
         logger.error(`[Seeding Job] Error crítico: ${err.message}`);

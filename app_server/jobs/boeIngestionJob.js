@@ -9,15 +9,19 @@ const logger = require("../utils/logger");
 const subastasRules = require("../config/subastasRules");
 
 const connectDB = require("../config/database"); 
-const { saveSubastas } = require("../services/subastasPersistenceService");
+const createSubastasRepository = require("../repositories/subastasRepository");
 
 const xmlParserService = require("../services/xmlParserService");
 const createBoeService = require("../services/boeHttpService");
 const createIngestionController = require("../controllers/ingestionController");
 
+const { runWorker } = require('./aiWorkerJob');
+
 const httpsAgent = new https.Agent({ keepAlive: true });
 const httpClient = axios.create({ httpsAgent, timeout: BOE.TIMEOUT_MS });
 const boeService = createBoeService(httpClient, BOE, logger);
+
+const subastasRepository = createSubastasRepository();
 
 const ingestionController = createIngestionController(
     boeService,
@@ -25,7 +29,7 @@ const ingestionController = createIngestionController(
     logger,
     { ...BOE, ...INGESTION },
     subastasRules,
-    { saveSubastas }
+    subastasRepository
 );
 
 function isNoPublicationError(error) {
@@ -49,7 +53,11 @@ async function main(executionDate = new Date()) {
     try {
         await connectDB(); 
         await ingestionController.runDailyIngestion(executionDate);
-        logger.info(`Ingesta completada con éxito.`);
+        logger.info(`Ingesta completada con éxito. Arrancando AI Worker...`);
+        
+        await runWorker();
+        
+        logger.info(`Proceso diario completo (Ingesta + IA) finalizado.`);
         return 0;
     } catch (error) {
         if (isNoPublicationError(error)) {

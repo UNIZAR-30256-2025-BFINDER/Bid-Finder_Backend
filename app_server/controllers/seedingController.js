@@ -16,30 +16,29 @@ function createSeedingController(ingestionController, logger) {
      * @param {number} daysToSeed - Cantidad de días hacia atrás a procesar.
      * @returns {Promise<void>}
      */
-    async function runSeeding(daysToSeed) {
-        logger.info(`[Seeding Controller] Iniciando descarga histórica de los últimos ${daysToSeed} días...`);
+    async function runSeeding(days = 3) {
+        logger.info(`[Seeding Controller] Iniciando descarga histórica de los últimos ${days} días...`);
+        logger.info(`\n======================================================`);
+        
+        let currentDate = new Date();
 
-        for (let i = 0; i < daysToSeed; i++) {
-            // Calculamos la fecha restando 'i' días a la fecha actual
-            const targetDate = new Date();
-            targetDate.setDate(targetDate.getDate() - i);
-            
-            // Formateamos para el log (YYYY-MM-DD)
-            const dateString = targetDate.toISOString().split('T')[0];
-            
-            logger.info(`\n======================================================`);
-            logger.info(`[Seeding Controller] Procesando día: ${dateString} (${i + 1}/${daysToSeed})`);
+        for (let i = 0; i < days; i++) {
+            logger.info(`[Seeding Controller] Procesando día: ${currentDate.toISOString().split('T')[0]} (${i + 1}/${days})`);
             logger.info(`======================================================`);
 
-            // Le pasamos la fecha calculada al controlador que ya teníamos
-            const success = await ingestionController.runDailyIngestion(targetDate);
-
-            if (!success) {
-                logger.error(`[Seeding Controller] Advertencia: El proceso devolvió error para el día ${dateString}.`);
+            try {
+                await ingestionController.runDailyIngestion(currentDate);
+            } catch (error) {
+                if (error.response && error.response.status === 404) {
+                     logger.info(`[Seeding Controller] Día sin publicación saltado.`);
+                } else {
+                     throw error;
+                }
             }
-        }
 
-        logger.info(`\n[Seeding Controller] Proceso de ingesta histórica finalizado con éxito.`);
+            currentDate.setDate(currentDate.getDate() - 1);
+            logger.info(`\n======================================================`);
+        }
     }
 
     return { runSeeding };

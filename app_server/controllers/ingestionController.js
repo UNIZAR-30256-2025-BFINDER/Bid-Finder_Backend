@@ -10,16 +10,16 @@ function chunkArray(array, size) {
     return chunked;
 }
 
-function createIngestionController(boeService, xmlParser, logger, config, ingestionRules, persistenceService) {
+function createIngestionController(boeService, xmlParser, logger, config, ingestionRules, subastasRepository) {
     
     async function runDailyIngestion(date = new Date()) {
         const sumarioXml = await boeService.fetchSumario(date);
         logger.info(`[Ingestion Controller] Sumario obtenido. Buscando items...`);
         
-        const subastas = xmlParser.extractItems(sumarioXml, ingestionRules.filterCondition);
+        const subastas = xmlParser.processXml(sumarioXml, ingestionRules.extractSumarioStrategy);
         if (subastas.length === 0) return true;
 
-        logger.info(`[Ingestion Controller] Se han encontrado ${subastas.length} items. Iniciando extracción In-Memory...`);
+        logger.info(`[Ingestion Controller] Se han encontrado ${subastas.length} items. Iniciando extracción...`);
         const lotes = chunkArray(subastas, config.CONCURRENCY_LIMIT);
 
         for (let i = 0; i < lotes.length; i++) {
@@ -30,16 +30,21 @@ function createIngestionController(boeService, xmlParser, logger, config, ingest
             await Promise.all(lote.map(async (subasta) => {
                 try {
                     const fullUrl = subasta.urlXml.startsWith('http') ? subasta.urlXml : `${config.BASE_DOMAIN}${subasta.urlXml}`;
+                    
                     const xmlContent = await boeService.fetchXMLContent(fullUrl);
-                    const datosProcesados = xmlParser.parseAnuncioIndividual(xmlContent, ingestionRules.mapFn);
-                    subastasListasParaBd.push(datosProcesados);
+                    let datosProcesados = xmlParser.processXml(xmlContent, ingestionRules.extractAnuncioStrategy);
+                    
+                    if (datosProcesados) {
+                        subastasListasParaBd.push(datosProcesados);
+                    }
+                    
                 } catch (err) {
-                    logger.error(`Error parseando anuncio ${subasta.id}: ${err.message}`);
+                    logger.error(`Error procesando anuncio ${subasta.id}: ${err.message}`);
                 }
             }));
 
-            if (subastasListasParaBd.length > 0 && persistenceService) {
-                const dbResult = await persistenceService.saveSubastas(subastasListasParaBd);
+            if (subastasListasParaBd.length > 0 && subastasRepository) {
+                const dbResult = await subastasRepository.saveSubastas(subastasListasParaBd);
                 logger.info(`[Mongo] Lote guardado: ${dbResult.upserted} creadas, ${dbResult.modified} actualizadas.`);
             }
         }
