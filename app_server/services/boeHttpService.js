@@ -24,10 +24,24 @@ function createBoeService(httpClient, config, logger) {
         const url = `${config.API_SUMARIO_URL}/${dateStr}`;
         
         logger.info(`[BOE Service] Solicitando sumario del BOE para la fecha: ${dateStr}...`);
-        const response = await httpClient.get(url, {
-            headers: { 'Accept': 'application/xml' }
-        });
-        return response.data;
+        
+        try {
+            const response = await httpClient.get(url, {
+                headers: { 'Accept': 'application/xml' }
+            });
+            return response.data;
+            
+        } catch (error) {
+            if (error.response && error.response.status === 404) {
+                logger.info(`[BOE Service] No hay publicación del BOE para el día ${dateStr} (Error 404).`);
+                const noPublicationError = new Error(`No se encontró publicación para la fecha ${dateStr}`);
+                noPublicationError.response = { status: 404 };
+                throw noPublicationError;
+            }
+            
+            logger.error(`[BOE Service] Error de red al solicitar sumario: ${error.message}`);
+            throw new Error(`Fallo de comunicación con la API del BOE: ${error.message}`, { cause: error });
+        }
     }
 
     async function fetchXMLContent(xmlUrl) {
