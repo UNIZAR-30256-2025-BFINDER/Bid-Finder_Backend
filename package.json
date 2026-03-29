@@ -8,7 +8,14 @@
     "lint:fix": "eslint . --fix",
     "test": "jest",
     "setup-cron": "./bin/setup-cron.sh",
-    "remove-cron": "./bin/remove-cron.sh"
+    "remove-cron": "./bin/remove-cron.sh",
+    "test:cov": "jest --coverage"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "app_server/**/*.js",
+      "!app_server/config/database.js"
+    ]
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
