@@ -16,7 +16,9 @@ const createBoeService = require('../services/boeHttpService');
 const createIngestionController = require('../controllers/ingestionController');
 const createSeedingController = require('../controllers/seedingController');
 
-const { runWorker } = require('./aiWorkerJob'); 
+
+const { runWorker } = require('./aiWorkerJob');
+const buildContainer = require('../config/container');
 
 const httpsAgent = new https.Agent({ keepAlive: true });
 const httpClient = axios.create({ httpsAgent, timeout: BOE.TIMEOUT_MS });
@@ -48,7 +50,9 @@ if (require.main === module) {
         return seedingController.runSeeding(daysToSeed);
     }).then(() => {
         logger.info('[Seeding Job] Ingesta histórica finalizada. Arrancando AI Worker para vaciar la cola...');
-        return runWorker();
+        // Use buildContainer to get correct dependencies for AI Worker
+        const deps = buildContainer();
+        return runWorker(deps);
     }).then(() => {
         logger.info('[Seeding Job] Proceso completo (Ingesta + IA) finalizado correctamente.');
         process.exit(0);
