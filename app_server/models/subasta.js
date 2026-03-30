@@ -60,6 +60,20 @@ const subastaSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        // Coordenadas geoJSON (Point)
+        location: {
+            type: {
+                type: String,
+                enum: ['Point'],
+                required: false,
+                default: undefined
+            },
+            coordinates: {
+                type: [Number], // [lon, lat]
+                required: false,
+                default: undefined
+            }
+        },
         // Fecha de extracción (se asigna automáticamente al crear)
         fechaExtraccion: {
             type: Date,
@@ -70,6 +84,10 @@ const subastaSchema = new mongoose.Schema(
         timestamps: true, // añade createdAt y updatedAt automáticamente
     },
 );
+
+
+// Índice geoespacial para búsquedas por proximidad
+subastaSchema.index({ location: '2dsphere' });
 
 // Crear índice compuesto si se necesita alguna búsqueda adicional
 subastaSchema.index({ fechaPublicacion: -1 });
