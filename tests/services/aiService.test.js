@@ -21,7 +21,8 @@ describe('AI Service - Sistema de Fallback y Rotación', () => {
         direccion: null,
         referencia_catastral: null,
         precio_salida: null,
-        valor_tasacion: null
+        valor_tasacion: null,
+        zona: null
     };
 
     it('Debería devolver el JSON parseado y validado si el PRIMER proveedor tiene éxito', async () => {

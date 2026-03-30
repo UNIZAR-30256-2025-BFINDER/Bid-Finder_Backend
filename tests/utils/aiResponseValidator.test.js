@@ -11,6 +11,7 @@ const camposVacios = {
     referencia_catastral: null,
     precio_salida:      null,
     valor_tasacion:     null,
+    zona:               null,
 };
 
 describe('validarDatosSubasta', () => {
@@ -70,7 +71,7 @@ describe('validarDatosSubasta', () => {
     it('acepta null explícito en todos los campos', () => {
         const result = validarDatosSubasta({
             titulo_resumido: null, resumen: null, direccion: null,
-            referencia_catastral: null, precio_salida: null, valor_tasacion: null,
+            referencia_catastral: null, precio_salida: null, valor_tasacion: null, zona: null
         });
         expect(result).toEqual(camposVacios);
     });
