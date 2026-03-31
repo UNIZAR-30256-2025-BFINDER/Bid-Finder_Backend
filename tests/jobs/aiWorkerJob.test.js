@@ -38,13 +38,12 @@ const subastasRepository = createSubastasRepository();
 const deps = { subastasRepository, aiService: mockAiService, logger: mockLogger };
 
 describe('AI Worker — test de integración', () => {
-
     beforeEach(async () => {
         await Subasta.deleteMany({});
         mockExtraer.mockClear();
     });
 
-    it('debería procesar una subasta PENDIENTE y actualizarla a PROCESADO', async () => {
+    it('debería procesar una subasta PENDIENTE y actualizarla a PROCESADO con oportunidad calculada', async () => {
         const subastaOriginal = await Subasta.create({
             id: 'TEST-123',
             titulo: 'Subasta de prueba',
@@ -58,6 +57,7 @@ describe('AI Worker — test de integración', () => {
         mockExtraer.mockResolvedValue({
             titulo_resumido: 'Piso en Madrid',
             precio_salida: 100000,
+            valor_tasacion: 150000,
             resumen: 'Un resumen bien hecho',
         });
 
@@ -67,6 +67,9 @@ describe('AI Worker — test de integración', () => {
         expect(subastaFinal.estado_ia).toBe('PROCESADO');
         expect(subastaFinal.titulo_resumido).toBe('Piso en Madrid');
         expect(subastaFinal.precio_salida).toBe(100000);
+        expect(subastaFinal.valor_tasacion).toBe(150000);
+        expect(subastaFinal.diferencia_porcentual_oportunidad).toBe(-33.33);
+        expect(subastaFinal.nivel_oportunidad).toBe('MEDIO');
         expect(subastaFinal.updatedAt).not.toEqual(subastaOriginal.updatedAt);
     });
 

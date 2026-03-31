@@ -7,6 +7,10 @@
 const connectDB = require('../config/database');
 const { SUBASTA_EXTRACTION_PROMPT } = require('../config/aiPrompts');
 const { AI_WORKER } = require('../config/constants');
+const {
+    calcularDiferenciaPorcentual,
+    calcularNivelOportunidad,
+} = require('../utils/oportunidadCalculator');
 
 const BATCH_SIZE = AI_WORKER.BATCH_SIZE;
 const DELAY_MS   = AI_WORKER.DELAY_MS;
@@ -33,7 +37,6 @@ async function runWorker(deps) {
 
     logger.info(`[AI Worker] Se han encontrado ${pendientes.length} subastas pendientes. Procesando...`);
 
-
     // Geocoding dependencies
     const { createGeoCodingService } = require('../services/geoCodingService');
     const axios = require('axios');
@@ -52,45 +55,67 @@ async function runWorker(deps) {
                 SUBASTA_EXTRACTION_PROMPT
             );
 
+            const diferencia_porcentual_oportunidad = calcularDiferenciaPorcentual(
+                datosExtraidos.precio_salida,
+                datosExtraidos.valor_tasacion
+            );
+
+            const nivel_oportunidad = calcularNivelOportunidad(
+                datosExtraidos.precio_salida,
+                datosExtraidos.valor_tasacion
+            );
+
             // Geocoding justo después de la IA
             let direccion = datosExtraidos.direccion || '';
-            // Nuevo: usar zona como fallback si no hay dirección
             let zona = datosExtraidos.zona || '';
             let municipio = '';
-            // Si hay dirección, intentar extraer municipio de zona
+
             if (direccion && zona) {
                 municipio = zona;
             } else if (!direccion && zona) {
-                // Si no hay dirección pero sí zona, usar zona como municipio/localidad
                 municipio = zona;
             } else if (subasta.texto) {
-                // Fallback: intentar extraer municipio del texto
-                const municipioMatch = subasta.texto.match(/en ([A-ZÁÉÍÓÚÑa-záéíóúñ ]+)[.,]/i) || subasta.texto.match(/([A-ZÁÉÍÓÚÑa-záéíóúñ ]+), \d{1,2} de /i);
+                const municipioMatch =
+                    subasta.texto.match(/en ([A-ZÁÉÍÓÚÑa-záéíóúñ ]+)[.,]/i) ||
+                    subasta.texto.match(/([A-ZÁÉÍÓÚÑa-záéíóúñ ]+), \d{1,2} de /i);
+
                 if (municipioMatch) {
                     municipio = municipioMatch[1].trim();
                 }
             }
-            logger.info(`[GeoCoding][DEBUG] Subasta ${subasta.id} dirección: "${direccion}" zona: "${zona}" municipio/localidad: "${municipio}"`);
-            const geoResult = await geoCodingService.getCoordinatesFromAddress(direccion, municipio);
-            logger.info(`[GeoCoding] Subasta ${subasta.id} dirección: "${direccion}" municipio: "${municipio}" resultado: ${geoResult.geojson ? 'OK' : 'NO'} fallback: ${geoResult.fallbackUsed}`);
 
-            await subastasRepository.updateAIExtraction(subasta.id, {
-                titulo_resumido:     datosExtraidos.titulo_resumido     ?? null,
-                resumen:             datosExtraidos.resumen             ?? null,
-                precio_salida:       datosExtraidos.precio_salida       ?? null,
-                valor_tasacion:      datosExtraidos.valor_tasacion      ?? null,
-                direccion:           datosExtraidos.direccion           ?? null,
-                zona:                datosExtraidos.zona                ?? null,
-                referencia_catastral: datosExtraidos.referencia_catastral ?? null,
-                location: geoResult.geojson || null
-            }, 'PROCESADO');
+            logger.info(
+                `[GeoCoding][DEBUG] Subasta ${subasta.id} dirección: "${direccion}" zona: "${zona}" municipio/localidad: "${municipio}"`
+            );
+
+            const geoResult = await geoCodingService.getCoordinatesFromAddress(direccion, municipio);
+
+            logger.info(
+                `[GeoCoding] Subasta ${subasta.id} dirección: "${direccion}" municipio: "${municipio}" resultado: ${geoResult.geojson ? 'OK' : 'NO'} fallback: ${geoResult.fallbackUsed}`
+            );
+
+            await subastasRepository.updateAIExtraction(
+                subasta.id,
+                {
+                    titulo_resumido: datosExtraidos.titulo_resumido ?? null,
+                    resumen: datosExtraidos.resumen ?? null,
+                    precio_salida: datosExtraidos.precio_salida ?? null,
+                    valor_tasacion: datosExtraidos.valor_tasacion ?? null,
+                    diferencia_porcentual_oportunidad,
+                    nivel_oportunidad,
+                    direccion: datosExtraidos.direccion ?? null,
+                    zona: datosExtraidos.zona ?? null,
+                    referencia_catastral: datosExtraidos.referencia_catastral ?? null,
+                    location: geoResult.geojson || null,
+                },
+                'PROCESADO'
+            );
 
             logger.info(`[AI Worker] ${subasta.id} actualizado correctamente.`);
 
             if (i < pendientes.length - 1) {
                 await sleep(DELAY_MS);
             }
-
         } catch (error) {
             const errMsg = error.message || '';
 

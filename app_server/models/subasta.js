@@ -39,6 +39,16 @@ const subastaSchema = new mongoose.Schema(
             type: Number,
             default: null,
         },
+        diferencia_porcentual_oportunidad: {
+            type: Number,
+            default: null,
+        },
+        nivel_oportunidad: {
+            type: String,
+            enum: ['ALTO', 'MEDIO', 'BAJO'],
+            default: null,
+            index: true,
+        },
         direccion: {
             type: String,
             default: null,
@@ -52,6 +62,10 @@ const subastaSchema = new mongoose.Schema(
             default: null,
         },
         resumen: {
+            type: String,
+            default: null,
+        },
+        zona: {
             type: String,
             default: null,
         },
@@ -84,7 +98,6 @@ const subastaSchema = new mongoose.Schema(
         timestamps: true, // añade createdAt y updatedAt automáticamente
     },
 );
-
 
 // Índice geoespacial para búsquedas por proximidad
 subastaSchema.index({ location: '2dsphere' });
