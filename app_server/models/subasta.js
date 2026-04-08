@@ -27,9 +27,9 @@ const subastaSchema = new mongoose.Schema(
         },
         estado_ia: {
             type: String,
-            enum: ['PENDIENTE', 'PROCESADO', 'ERROR'],
-            default: 'PENDIENTE',
-            index: true 
+            enum: ["PENDIENTE", "PROCESADO", "ERROR"],
+            default: "PENDIENTE",
+            index: true,
         },
         precio_salida: {
             type: Number,
@@ -45,7 +45,7 @@ const subastaSchema = new mongoose.Schema(
         },
         nivel_oportunidad: {
             type: String,
-            enum: ['ALTO', 'MEDIO', 'BAJO'],
+            enum: ["ALTO", "MEDIO", "BAJO"],
             default: null,
             index: true,
         },
@@ -78,20 +78,34 @@ const subastaSchema = new mongoose.Schema(
         location: {
             type: {
                 type: String,
-                enum: ['Point'],
+                enum: ["Point"],
                 required: false,
-                default: undefined
+                default: undefined,
             },
             coordinates: {
                 type: [Number], // [lon, lat]
                 required: false,
-                default: undefined
-            }
+                default: undefined,
+            },
         },
         // Fecha de extracción (se asigna automáticamente al crear)
         fechaExtraccion: {
             type: Date,
             default: Date.now,
+        },
+        // Campos de riesgo legal, ocupación y cargas, extraídos por la IA
+        riesgo_legal: {
+            type: String,
+            enum: ["Alto", "Medio", "Bajo"],
+            default: null,
+        },
+        ocupantes: {
+            type: String,
+            default: null,
+        },
+        cargas_previas: {
+            type: String,
+            default: null,
         },
     },
     {
@@ -100,7 +114,7 @@ const subastaSchema = new mongoose.Schema(
 );
 
 // Índice geoespacial para búsquedas por proximidad
-subastaSchema.index({ location: '2dsphere' });
+subastaSchema.index({ location: "2dsphere" });
 
 // Crear índice compuesto si se necesita alguna búsqueda adicional
 subastaSchema.index({ fechaPublicacion: -1 });
