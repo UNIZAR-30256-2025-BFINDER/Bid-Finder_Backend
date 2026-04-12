@@ -4,7 +4,6 @@
  */
 
 const connectDB  = require('../config/database');
-const logger     = require('../utils/logger');
 
 function isNoPublicationError(error) {
     if (error.response && error.response.status === 404) return true;
@@ -43,7 +42,7 @@ if (require.main === module) {
     runIngestion(deps)
         .then(process.exit)
         .catch(err => {
-            logger.error('Error crítico durante la ingesta:', err);
+            deps.logger.error('Error crítico durante la ingesta:', err);
             process.exit(1);
         });
 }

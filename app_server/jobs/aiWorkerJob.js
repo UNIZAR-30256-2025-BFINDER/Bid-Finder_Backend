@@ -23,7 +23,7 @@ function sleep(ms) {
  * @param {{ subastasRepository, aiService, logger }} deps
  */
 async function runWorker(deps) {
-    const { subastasRepository, aiService, logger } = deps;
+    const { subastasRepository, aiService, logger, geoCodingService } = deps;
 
     logger.info("[AI Worker] Iniciando procesamiento de la cola...");
     await connectDB();
@@ -40,12 +40,6 @@ async function runWorker(deps) {
     );
 
     // Geocoding dependencies
-    const { createGeoCodingService } = require("../services/geoCodingService");
-    const axios = require("axios");
-    const https = require("https");
-    const httpsAgent = new https.Agent({ keepAlive: true });
-    const httpClient = axios.create({ httpsAgent, timeout: 10000 });
-    const geoCodingService = createGeoCodingService(httpClient);
 
     for (let i = 0; i < pendientes.length; i++) {
         const subasta = pendientes[i];

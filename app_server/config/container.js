@@ -1,9 +1,3 @@
-/**
- * @fileoverview Contenedor de dependencias (Composition Root).
- * Es el ÚNICO lugar donde se instancian y conectan los módulos entre sí.
- * Los jobs y controladores reciben sus dependencias, no las crean.
- */
-
 const createSubastasRepository = require('../repositories/subastasRepository');
 const createGeminiProvider     = require('../services/ai_providers/geminiProvider');
 const createGroqProvider       = require('../services/ai_providers/groqProvider');
@@ -11,6 +5,7 @@ const createAiService          = require('../services/aiService');
 const createBoeService         = require('../services/boeHttpService');
 const createIngestionController = require('../controllers/ingestionController');
 const xmlParserService         = require('../services/xmlParserService');
+const { createGeoCodingService } = require('../services/geoCodingService');
 const logger                   = require('../utils/logger');
 const { BOE, INGESTION }       = require('./constants');
 const subastasRules            = require('./subastasRules');
@@ -20,7 +15,13 @@ const https = require('https');
 
 function buildContainer() {
     const httpsAgent = new https.Agent({ keepAlive: true });
-    const httpClient = axios.create({ httpsAgent, timeout: BOE.TIMEOUT_MS });
+    const httpClient = axios.create({ 
+        httpsAgent, 
+        timeout: 10000,
+        headers: {
+            'User-Agent': 'BidFinderApp/1.0 (https://github.com/UNIZAR-30256-2025-BFINDER/Bid-Finder_Backend)' 
+        }
+    });
 
     const subastasRepository = createSubastasRepository();
 
@@ -31,6 +32,7 @@ function buildContainer() {
 
     const aiService  = createAiService(aiProviders, logger);
     const boeService = createBoeService(httpClient, BOE, logger);
+    const geoCodingService = createGeoCodingService(httpClient);
 
     const ingestionController = createIngestionController(
         boeService,
@@ -45,6 +47,7 @@ function buildContainer() {
         subastasRepository,
         aiService,
         boeService,
+        geoCodingService,
         ingestionController,
         logger,
     };
