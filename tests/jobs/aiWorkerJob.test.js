@@ -20,6 +20,15 @@ const mockLogger = {
 const mockExtraer = jest.fn();
 const mockAiService = { extraerDatosSubasta: mockExtraer };
 
+const mockGeoCodingService = {
+    getCoordinatesFromAddress: jest.fn().mockResolvedValue({
+        geojson: { type: 'Point', coordinates: [-3.7038, 40.4168] },
+        raw: null,
+        fallbackUsed: false,
+        query: 'Madrid'
+    })
+};
+
 let mongoServer;
 
 beforeAll(async () => {
@@ -35,12 +44,18 @@ afterAll(async () => {
 const createSubastasRepository = require('../../app_server/repositories/subastasRepository');
 const subastasRepository = createSubastasRepository();
 
-const deps = { subastasRepository, aiService: mockAiService, logger: mockLogger };
+const deps = { 
+    subastasRepository, 
+    aiService: mockAiService, 
+    logger: mockLogger,
+    geoCodingService: mockGeoCodingService 
+};
 
 describe('AI Worker — test de integración', () => {
     beforeEach(async () => {
         await Subasta.deleteMany({});
         mockExtraer.mockClear();
+        mockGeoCodingService.getCoordinatesFromAddress.mockClear(); 
     });
 
     it('debería procesar una subasta PENDIENTE y actualizarla a PROCESADO con oportunidad calculada', async () => {
