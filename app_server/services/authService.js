@@ -113,7 +113,7 @@ async function renovarToken(refreshTokenViejo) {
         await usuario.save();
 
         return tokens;
-    } catch (error) {
+    } catch { 
         const err = new Error('Refresh token expirado o inválido. Inicia sesión de nuevo.');
         err.statusCode = 401;
         throw err;
