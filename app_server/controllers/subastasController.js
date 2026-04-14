@@ -2,9 +2,20 @@ function createSubastasController(subastasService) {
     
     async function getAllSubastas(req, res) {
         try {
-            const subastas = await subastasService.getAllSubastas();
+            const { provincia, categoria } = req.query;
+            
+            const filtros = {};
+            if (provincia) filtros.provincia = provincia;
+            if (categoria) filtros.categoria = categoria;
+
+            const subastas = await subastasService.getAllSubastas(filtros);
+            
             return res.status(200).json({
                 status: "success",
+                meta: {
+                    filtrosAplicados: filtros,
+                    total: subastas.length
+                },
                 data: subastas,
             });
         } catch (error) {
