@@ -1,8 +1,36 @@
 const Subasta = require('../models/subasta');
 
 function createSubastasRepository() {
-    async function findAll() {
-        return await Subasta.find({ estado_ia: 'PROCESADO' }).sort({ fechaPublicacion: -1 });
+   async function findAll(filtros = {}) {
+        const query = { estado_ia: 'PROCESADO' };
+        const andConditions = [];
+
+        if (filtros.provincia) {
+            const regexProvincia = new RegExp(filtros.provincia, 'i');
+            andConditions.push({
+                $or: [
+                    { zona: regexProvincia },
+                    { direccion: regexProvincia }
+                ]
+            });
+        }
+
+        if (filtros.categoria) {
+            const regexCategoria = new RegExp(filtros.categoria, 'i');
+            andConditions.push({
+                $or: [
+                    { titulo_resumido: regexCategoria },
+                    { resumen: regexCategoria },
+                    { texto: regexCategoria }
+                ]
+            });
+        }
+
+        if (andConditions.length > 0) {
+            query.$and = andConditions;
+        }
+
+        return await Subasta.find(query).sort({ fechaPublicacion: -1 });
     }
 
     async function findById(id) {

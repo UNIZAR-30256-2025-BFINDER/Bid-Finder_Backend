@@ -2,10 +2,11 @@ function createSubastasService(subastasRepository) {
 
   /**
    * Obtiene todas las subastas almacenadas en la base de datos real.
+   * @param {Object} filtros - Filtros opcionales (ej: { provincia: 'Madrid' })
    * @returns {Promise<Array>} Lista de subastas.
    */
-  async function getAllSubastas() {
-    return await subastasRepository.findAll();
+  async function getAllSubastas(filtros = {}) {
+    return await subastasRepository.findAll(filtros);
   }
 
   /**
