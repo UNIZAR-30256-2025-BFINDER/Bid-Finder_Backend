@@ -30,22 +30,50 @@ afterEach(() => {
 
 describe('subastasController — getAllSubastas', () => {
 
-    it('responde 200 con la lista de subastas', async () => {
+    it('responde 200 con la lista sin filtros y el objeto meta', async () => {
         const lista = [{ id: 'BOE-1' }];
         mockService.getAllSubastas.mockResolvedValue(lista);
+        const req = { query: {} }; 
         const res = mockRes();
 
-        await controller.getAllSubastas({}, res);
+        await controller.getAllSubastas(req, res);
 
+        expect(mockService.getAllSubastas).toHaveBeenCalledWith({});
         expect(res.status).toHaveBeenCalledWith(200);
-        expect(res.json).toHaveBeenCalledWith({ status: 'success', data: lista });
+        expect(res.json).toHaveBeenCalledWith({ 
+            status: 'success', 
+            meta: { filtrosAplicados: {}, total: 1 },
+            data: lista 
+        });
+    });
+
+    it('responde 200 y pasa los filtros de la URL al servicio (HU-12)', async () => {
+        const lista = [{ id: 'BOE-1' }, { id: 'BOE-2' }];
+        mockService.getAllSubastas.mockResolvedValue(lista);
+        
+        const req = { query: { provincia: 'Madrid', categoria: 'Inmueble' } };
+        const res = mockRes();
+
+        await controller.getAllSubastas(req, res);
+
+        expect(mockService.getAllSubastas).toHaveBeenCalledWith({ provincia: 'Madrid', categoria: 'Inmueble' });
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({ 
+            status: 'success', 
+            meta: { 
+                filtrosAplicados: { provincia: 'Madrid', categoria: 'Inmueble' }, 
+                total: 2 
+            },
+            data: lista 
+        });
     });
 
     it('responde 500 si el servicio lanza un error', async () => {
         mockService.getAllSubastas.mockRejectedValue(new Error('DB caída'));
+        const req = { query: {} };
         const res = mockRes();
 
-        await controller.getAllSubastas({}, res);
+        await controller.getAllSubastas(req, res);
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith(

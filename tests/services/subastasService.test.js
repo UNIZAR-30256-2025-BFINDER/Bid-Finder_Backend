@@ -31,6 +31,17 @@ describe('subastasService', () => {
 
             await expect(service.getAllSubastas()).rejects.toThrow('DB caída');
         });
+
+        it('pasa los filtros al repositorio', async () => {
+            const lista = [{ id: 'BOE-1' }];
+            mockRepository.findAll.mockResolvedValue(lista);
+            const filtros = { provincia: 'valencia', categoria: 'inmueble' };
+
+            const result = await service.getAllSubastas(filtros);
+
+            expect(result).toEqual(lista);
+            expect(mockRepository.findAll).toHaveBeenCalledWith(filtros);
+        });
     });
 
     describe('getSubastaById', () => {
