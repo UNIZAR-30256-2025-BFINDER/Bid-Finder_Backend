@@ -66,28 +66,17 @@ async function runWorker(deps) {
 
             // Geocoding justo después de la IA
             let direccion = datosExtraidos.direccion || "";
-            let zona = datosExtraidos.zona || "";
-            let municipio = "";
+            let municipio = datosExtraidos.zona || ""; 
 
-            if (direccion && zona) {
-                municipio = zona;
-            } else if (!direccion && zona) {
-                municipio = zona;
-            } else if (subasta.texto) {
+            if (!municipio && subasta.texto) {
                 const municipioMatch =
-                    subasta.texto.match(/en ([A-ZÁÉÍÓÚÑa-záéíóúñ ]+)[.,]/i) ||
-                    subasta.texto.match(
-                        /([A-ZÁÉÍÓÚÑa-záéíóúñ ]+), \d{1,2} de /i,
-                    );
+                    subasta.texto.match(/en ([A-ZÁÉÍÓÚÑ][a-záéíóúñ ]+)[.,]/) ||
+                    subasta.texto.match(/([A-ZÁÉÍÓÚÑ][a-záéíóúñ ]+), \d{1,2} de /);
 
                 if (municipioMatch) {
                     municipio = municipioMatch[1].trim();
                 }
             }
-
-            logger.info(
-                `[GeoCoding][DEBUG] Subasta ${subasta.id} dirección: "${direccion}" zona: "${zona}" municipio/localidad: "${municipio}"`,
-            );
 
             const geoResult = await geoCodingService.getCoordinatesFromAddress(
                 direccion,
