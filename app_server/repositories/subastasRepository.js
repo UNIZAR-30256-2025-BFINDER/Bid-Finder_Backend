@@ -25,12 +25,51 @@ function createSubastasRepository() {
                 ]
             });
         }
+        if (filtros.precio_min || filtros.precio_max) {
+            const precioMin = filtros.precio_min ? Number(filtros.precio_min) : undefined;
+            const precioMax = filtros.precio_max ? Number(filtros.precio_max) : undefined;
+            const precioCond = {};
+            if (precioMin !== undefined && !isNaN(precioMin)) precioCond.$gte = precioMin;
+            if (precioMax !== undefined && !isNaN(precioMax)) precioCond.$lte = precioMax;
+            if (Object.keys(precioCond).length > 0) {
+                andConditions.push({ precio_salida: { ...precioCond, $ne: null } });
+            }
+        }
+
+        if (filtros.nivel_oportunidad) {
+            const prioridad = Subasta.NIVEL_OPORTUNIDAD_PRIORIDAD;
+            const idx = prioridad.findIndex(
+                n => n.toUpperCase() === filtros.nivel_oportunidad.toUpperCase()
+            );
+            if (idx !== -1) {
+                const niveles = prioridad.slice(0, idx + 1);
+                andConditions.push({ 
+                    nivel_oportunidad: { $in: niveles, $ne: null }
+                });
+            }
+        }
+
+        if (filtros.q) {
+            andConditions.push({ $text: { $search: filtros.q } });
+        }
 
         if (andConditions.length > 0) {
             query.$and = andConditions;
         }
 
-        return await Subasta.find(query).sort({ fechaPublicacion: -1 });
+        let projection = null;
+        let sortOptions = { fechaPublicacion: -1 };
+
+        if (filtros.q) {
+            projection = { score: { $meta: "textScore" } };
+            sortOptions = { score: { $meta: "textScore" } };
+        }
+
+        if (projection) {
+            return await Subasta.find(query, projection).sort(sortOptions);
+        } else {
+            return await Subasta.find(query).sort(sortOptions);
+        }
     }
 
     async function findById(id) {
