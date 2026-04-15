@@ -1,4 +1,6 @@
 const mongoose = require("mongoose");
+const NIVEL_OPORTUNIDAD_PRIORIDAD = ["ALTO", "MEDIO", "BAJO"];
+
 
 const subastaSchema = new mongoose.Schema(
     {
@@ -45,7 +47,7 @@ const subastaSchema = new mongoose.Schema(
         },
         nivel_oportunidad: {
             type: String,
-            enum: ["ALTO", "MEDIO", "BAJO"],
+            enum: NIVEL_OPORTUNIDAD_PRIORIDAD,
             default: null,
             index: true,
         },
@@ -119,4 +121,33 @@ subastaSchema.index({ location: "2dsphere" });
 // Crear índice compuesto si se necesita alguna búsqueda adicional
 subastaSchema.index({ fechaPublicacion: -1 });
 
-module.exports = mongoose.model("Subasta", subastaSchema);
+subastaSchema.index({
+    titulo_resumido: "text",
+    resumen: "text",
+    titulo: "text",
+    texto: "text",
+    direccion: "text",
+    zona: "text",
+    cargas_previas: "text",
+    id: "text",
+    referencia_catastral: "text",
+    riesgo_legal: "text"
+}, {
+    weights: {
+        titulo_resumido: 10,
+        titulo: 8,
+        resumen: 5,
+        direccion: 4,
+        zona: 4,
+        id: 3,
+        referencia_catastral: 3,
+        cargas_previas: 2,
+        riesgo_legal: 2,
+        texto: 1
+    },
+    name: "TextIndexCompleto"
+});
+
+const Subasta = mongoose.model("Subasta", subastaSchema);
+Subasta.NIVEL_OPORTUNIDAD_PRIORIDAD = NIVEL_OPORTUNIDAD_PRIORIDAD;
+module.exports = Subasta;
