@@ -2,11 +2,15 @@ function createSubastasController(subastasService) {
     
     async function getAllSubastas(req, res) {
         try {
-            const { provincia, categoria } = req.query;
+            const { provincia, categoria, precio_min, precio_max, nivel_oportunidad, q } = req.query;
             
             const filtros = {};
             if (provincia) filtros.provincia = provincia;
             if (categoria) filtros.categoria = categoria;
+            if (q) filtros.q = q;
+            if (precio_min) filtros.precio_min = precio_min;
+            if (precio_max) filtros.precio_max = precio_max;
+            if (nivel_oportunidad) filtros.nivel_oportunidad = nivel_oportunidad;
 
             const subastas = await subastasService.getAllSubastas(filtros);
             
