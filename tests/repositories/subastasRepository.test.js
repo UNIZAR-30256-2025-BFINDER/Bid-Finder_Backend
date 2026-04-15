@@ -59,7 +59,7 @@ describe("subastasRepository - findAll con filtros", () => {
             },
             {
                 id: "BOE-FILTRO-4",
-                estado_ia: "PENDIENTE", 
+                estado_ia: "PENDIENTE",
                 zona: "Madrid",
                 titulo: "Título de prueba 4",
                 urlPdf: "/ruta/prueba4.pdf",
@@ -72,7 +72,7 @@ describe("subastasRepository - findAll con filtros", () => {
 
     it("debe devolver todas las PROCESADAS si no hay filtros", async () => {
         const results = await subastasRepository.findAll({});
-        expect(results.length).toBe(3); 
+        expect(results.length).toBe(3);
     });
 
     it("debe filtrar por provincia buscando en zona o direccion (insensible a mayúsculas)", async () => {
@@ -130,5 +130,60 @@ describe("subastasRepository - updateAIExtraction", () => {
         expect(subastaGuardada.valor_tasacion).toBe(150000);
         expect(subastaGuardada.diferencia_porcentual_oportunidad).toBe(-33.33);
         expect(subastaGuardada.nivel_oportunidad).toBe("MEDIO");
+    });
+});
+
+describe("subastasRepository - Búsqueda semántica por texto", () => {
+    beforeEach(async () => {
+        await Subasta.create([
+            {
+                id: "BOE-TEXT-1",
+                estado_ia: "PROCESADO",
+                fechaPublicacion: "20260101",
+                titulo: "Gran casa en la costa. Casa perfecta",
+                titulo_resumido: "Espectacular Casa",
+                resumen: "Se subasta esta casa",
+                urlPdf: "/ruta/text1.pdf",
+                texto: "Texto con detalles sobre la casa",
+                rawXml: "<xml>text</xml>"
+            },
+            {
+                id: "BOE-TEXT-2",
+                estado_ia: "PROCESADO",
+                fechaPublicacion: "20260102",
+                titulo: "Furgoneta vivienda",
+                titulo_resumido: "Furgoneta que sirve de casa",
+                resumen: "Vehículo modificado",
+                urlPdf: "/ruta/text2.pdf",
+                texto: "El vehículo es utilitario",
+                rawXml: "<xml>text2</xml>"
+            },
+            {
+                id: "BOE-TEXT-3",
+                estado_ia: "PROCESADO",
+                fechaPublicacion: "20260103",
+                titulo: "Local",
+                titulo_resumido: "Piso para reformar",
+                resumen: "Piso soleado",
+                urlPdf: "/ruta/text3.pdf",
+                texto: "Texto sobre otro inmueble",
+                rawXml: "<xml>text3</xml>"
+            }
+        ]);
+
+        await Subasta.ensureIndexes();
+    });
+
+    it("debe devolver resultados por palabras clave y manejar el score correctamente (Tarea 4)", async () => {
+        const results = await subastasRepository.findAll({ q: "casa" });
+        expect(results.length).toBeGreaterThan(0);
+
+        const ids = results.map(r => r.id);
+
+        expect(ids).toContain("BOE-TEXT-1");
+        expect(ids).toContain("BOE-TEXT-2");
+        expect(ids).not.toContain("BOE-TEXT-3");
+
+        expect(ids[0]).toBe("BOE-TEXT-1");
     });
 });
