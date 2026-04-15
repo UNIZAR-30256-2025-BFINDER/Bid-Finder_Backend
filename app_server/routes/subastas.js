@@ -48,6 +48,44 @@ const subastasController = createSubastasController(subastasService);
  *   get:
  *     summary: Devuelve una lista con todas las subastas listas para consumo
  *     tags: [Subastas]
+ *     parameters:
+ *       - in: query
+ *         name: provincia
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Provincia (opcional)
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Búsqueda por texto (opcional)
+ *       - in: query
+ *         name: categoria
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Categoría (opcional)
+ *       - in: query
+ *         name: precio_min
+ *         schema:
+ *           type: number
+ *         required: false
+ *         description: Precio mínimo (opcional)
+ *       - in: query
+ *         name: precio_max
+ *         schema:
+ *           type: number
+ *         required: false
+ *         description: Precio máximo (opcional)
+ *       - in: query
+ *         name: nivel_oportunidad
+ *         schema:
+ *           type: string
+ *           enum: ["ALTO", "MEDIO", "BAJO"]
+ *         required: false
+ *         description: 'Nivel de oportunidad (opcional, valores posibles: "ALTO", "MEDIO", "BAJO")'
  *     responses:
  *       200:
  *         description: Lista de subastas obtenida exitosamente
