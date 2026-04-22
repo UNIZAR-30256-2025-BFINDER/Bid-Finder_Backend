@@ -5,9 +5,11 @@ const createSubastasRepository = require('../repositories/subastasRepository');
 const createSubastasService = require('../services/subastasService');
 const createSubastasController = require('../controllers/subastasController');
 
+const logger = require('../utils/logger');
+
 const subastasRepository = createSubastasRepository();
 const subastasService = createSubastasService(subastasRepository);
-const subastasController = createSubastasController(subastasService);
+const subastasController = createSubastasController(subastasService, logger);
 
 /**
  * @swagger

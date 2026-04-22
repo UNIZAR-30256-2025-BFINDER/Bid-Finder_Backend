@@ -16,17 +16,17 @@ const mockService = {
     getSubastaById: jest.fn(),
 };
 
-const controller = createSubastasController(mockService);
+const mockLogger = {
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn()
+};
+
+const controller = createSubastasController(mockService, mockLogger);
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.spyOn(console, 'error').mockImplementation(() => {});
 });
-
-afterEach(() => {
-  console.error.mockRestore();
-});
-
 
 describe('subastasController — getAllSubastas', () => {
 
@@ -79,6 +79,7 @@ describe('subastasController — getAllSubastas', () => {
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({ error: expect.objectContaining({ status: 500 }) })
         );
+        expect(mockLogger.error).toHaveBeenCalled();
     });
 });
 
@@ -127,5 +128,6 @@ describe('subastasController — getSubastaById', () => {
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({ error: expect.objectContaining({ status: 500 }) })
         );
+        expect(mockLogger.error).toHaveBeenCalled();
     });
 });

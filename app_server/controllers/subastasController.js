@@ -1,4 +1,4 @@
-function createSubastasController(subastasService) {
+function createSubastasController(subastasService, logger) {
     
     async function getAllSubastas(req, res) {
         try {
@@ -23,7 +23,7 @@ function createSubastasController(subastasService) {
                 data: subastas,
             });
         } catch (error) {
-            console.error("Error en getAllSubastas:", error);
+            logger.error("Error en getAllSubastas:", error);
             return res.status(500).json({
                 error: {
                     message: "Error al recuperar las subastas de la base de datos",
@@ -62,7 +62,7 @@ function createSubastasController(subastasService) {
                 data: subasta,
             });
         } catch (error) {
-            console.error(`Error en getSubastaById para ID ${req.params.id}:`, error);
+            logger.error(`Error en getSubastaById para ID ${req.params.id}:`, error);
             return res.status(500).json({
                 error: {
                     message: "Error interno al buscar la subasta",
