@@ -1,6 +1,8 @@
 var express = require('express');
 var router = express.Router();
 
+const comentariosRouter = require('./comentarios');
+
 const createSubastasRepository = require('../repositories/subastasRepository');
 const createSubastasService = require('../services/subastasService');
 const createSubastasController = require('../controllers/subastasController');
@@ -128,5 +130,8 @@ router.get('/', subastasController.getAllSubastas);
  *         description: Error interno del servidor
  */
 router.get('/:id', subastasController.getSubastaById);
+
+
+router.use('/:id/comentarios', comentariosRouter);
 
 module.exports = router;
