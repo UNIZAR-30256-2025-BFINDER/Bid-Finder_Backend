@@ -1,23 +1,27 @@
 services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
-    environment:
-      - DEBUG=bidfinder:*
-      - MONGODB_URI=mongodb://db:27017/bidfinder
-    depends_on:
-      - db
+    app:
+        build: .
+        ports:
+            - "3000:3000"
+        volumes:
+            - .:/app
+            - /app/node_modules
+        environment:
+            - DEBUG=bidfinder:*
+            # Para cuando tengais en .env la uri de Atlas, descomentar esta linea
+            # y comentar tanto la de abajo como del depends on para abajo, ya que no hará falta lanzar bd
+            #    - MONGODB_URI=${MONGODB_URI}
 
-  db:
-    image: mongo:6.0
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
+            - MONGODB_URI=mongodb://db:27017/bidfinder
+        depends_on:
+            - db
+
+    db:
+        image: mongo:6.0
+        ports:
+            - "27017:27017"
+        volumes:
+            - mongo-data:/data/db
 
 volumes:
-  mongo-data:
+    mongo-data:
