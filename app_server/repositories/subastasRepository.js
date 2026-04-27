@@ -110,12 +110,31 @@ function createSubastasRepository() {
         );
     }
 
+    async function getSystemStats() {
+        const inicioDeHoy = new Date();
+        inicioDeHoy.setHours(0, 0, 0, 0);
+
+        const ingresadasHoy = await Subasta.countDocuments({
+            createdAt: { $gte: inicioDeHoy }
+        });
+
+        const ultimaSubasta = await Subasta.findOne()
+            .sort({ createdAt: -1 })
+            .select('createdAt');
+
+        return {
+            ingresadasHoy,
+            ultimaIngesta: ultimaSubasta ? ultimaSubasta.createdAt : null
+        };
+    }
+
     return {
         findAll,
         findById,
         saveSubastas,
         findPendingAI,
-        updateAIExtraction
+        updateAIExtraction,
+        getSystemStats,
     };
 }
 
