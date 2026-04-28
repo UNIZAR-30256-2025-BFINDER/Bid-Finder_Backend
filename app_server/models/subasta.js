@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const NIVEL_OPORTUNIDAD_PRIORIDAD = ["ALTO", "MEDIO", "BAJO"];
+const CATEGORIAS_PERMITIDAS = ["INMUEBLE", "VEHICULO", "MAQUINARIA", "OTROS"];
 
 
 const subastaSchema = new mongoose.Schema(
@@ -71,6 +72,12 @@ const subastaSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        categoria: {
+            type: String,
+            enum: CATEGORIAS_PERMITIDAS,
+            default: null,
+            index: true,
+        },
         // XML original recibido
         rawXml: {
             type: String,
@@ -125,6 +132,7 @@ subastaSchema.index({
     titulo_resumido: "text",
     resumen: "text",
     titulo: "text",
+    categoria: "text",
     texto: "text",
     direccion: "text",
     zona: "text",
@@ -136,6 +144,7 @@ subastaSchema.index({
     weights: {
         titulo_resumido: 10,
         titulo: 8,
+        categoria: 6,
         resumen: 5,
         direccion: 4,
         zona: 4,
@@ -150,4 +159,5 @@ subastaSchema.index({
 
 const Subasta = mongoose.model("Subasta", subastaSchema);
 Subasta.NIVEL_OPORTUNIDAD_PRIORIDAD = NIVEL_OPORTUNIDAD_PRIORIDAD;
+Subasta.CATEGORIAS_PERMITIDAS = CATEGORIAS_PERMITIDAS;
 module.exports = Subasta;
