@@ -1,9 +1,9 @@
 /**
- * @fileoverview Middleware para proteger rutas privadas.
- * Verifica la validez y expiración del JSON Web Token (JWT).
+ * @fileoverview Middleware para proteger rutas privadas y validar roles.
  */
 
 const jwt = require('jsonwebtoken');
+const Usuario = require('../models/usuario');
 
 const protect = async (req, res, next) => {
     let token;
@@ -21,9 +21,7 @@ const protect = async (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
         req.user = { id: decoded.id };
-        
         next();
     } catch (error) {
         let mensaje = 'Token inválido o corrupto.';
@@ -38,4 +36,28 @@ const protect = async (req, res, next) => {
     }
 };
 
-module.exports = { protect };
+/**
+ * Middleware para restringir el acceso solo a administradores.
+ * Debe ejecutarse siempre después de `protect`.
+ */
+const isAdmin = async (req, res, next) => {
+    try {
+        const usuario = await Usuario.findById(req.user.id);
+
+        if (!usuario || usuario.rol !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Acceso denegado. Se requieren privilegios de administrador.'
+            });
+        }
+
+        next();
+    } catch {
+        return res.status(500).json({
+            success: false,
+            message: 'Error al verificar los permisos del usuario.'
+        });
+    }
+};
+
+module.exports = { protect, isAdmin };
