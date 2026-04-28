@@ -17,6 +17,7 @@ describe("AI Service - Sistema de Fallback y Rotación", () => {
     const defaultValidados = {
         titulo_resumido: null,
         resumen: null,
+        categoria: null,
         direccion: null,
         referencia_catastral: null,
         precio_salida: null,
