@@ -32,10 +32,13 @@ function validarDatosSubasta(data) {
         throw new Error("La respuesta de la IA no es un objeto válido.");
     }
 
+    const CATEGORIAS = ["inmueble", "vehiculo", "maquinaria", "otros"];
+
     const esquema = {
         titulo_resumido: (v) => typeof v === "string" || v === null,
         resumen: (v) => typeof v === "string" || v === null,
         direccion: (v) => typeof v === "string" || v === null,
+        categoria: (v) => v === null || (typeof v === "string" && CATEGORIAS.includes(v.toLowerCase())),
         referencia_catastral: (v) => typeof v === "string" || v === null,
         precio_salida: (v) => !isNaN(parseFloat(v)) || v === null,
         valor_tasacion: (v) => !isNaN(parseFloat(v)) || v === null,
@@ -54,6 +57,8 @@ function validarDatosSubasta(data) {
                     data[campo] !== null ? parseFloat(data[campo]) : null;
             } else if (campo === "zona") {
                 limpio[campo] = esZonaValida(data[campo]) ? data[campo] : null;
+            } else if (campo === "categoria") {
+                limpio[campo] = data[campo] !== null ? data[campo].toUpperCase() : null;
             } else {
                 limpio[campo] = data[campo];
             }

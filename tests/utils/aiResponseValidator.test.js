@@ -10,6 +10,7 @@ const camposVacios = {
     titulo_resumido: null,
     resumen: null,
     direccion: null,
+    categoria: null,
     referencia_catastral: null,
     precio_salida: null,
     valor_tasacion: null,
@@ -92,5 +93,10 @@ describe("validarDatosSubasta", () => {
             zona: null,
         });
         expect(result).toEqual(camposVacios);
+    });
+
+    it("acepta y normaliza una categoria válida", () => {
+        const result = validarDatosSubasta({ categoria: "inmueble" });
+        expect(result.categoria).toBe("INMUEBLE");
     });
 });
