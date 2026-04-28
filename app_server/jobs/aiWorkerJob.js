@@ -92,6 +92,7 @@ async function runWorker(deps) {
                 {
                     titulo_resumido: datosExtraidos.titulo_resumido ?? null,
                     resumen: datosExtraidos.resumen ?? null,
+                        categoria: datosExtraidos.categoria ?? null,
                     precio_salida: datosExtraidos.precio_salida ?? null,
                     valor_tasacion: datosExtraidos.valor_tasacion ?? null,
                     diferencia_porcentual_oportunidad,
