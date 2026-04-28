@@ -1,3 +1,22 @@
+    // Pipeline de agregación por categoría
+    async function aggregateByCategoria() {
+        return await Subasta.aggregate([
+            { $match: { estado_ia: 'PROCESADO', categoria: { $ne: null } } },
+            { $group: { _id: "$categoria", total: { $sum: 1 } } },
+            { $sort: { total: -1 } },
+            { $project: { categoria: "$_id", total: 1, _id: 0 } }
+        ]);
+    }
+
+    // Pipeline de agregación por provincia (zona)
+    async function aggregateByProvincia() {
+        return await Subasta.aggregate([
+            { $match: { estado_ia: 'PROCESADO', zona: { $ne: null } } },
+            { $group: { _id: "$zona", total: { $sum: 1 } } },
+            { $sort: { total: -1 } },
+            { $project: { provincia: "$_id", total: 1, _id: 0 } }
+        ]);
+    }
 const Subasta = require('../models/subasta');
 
 function createSubastasRepository() {
@@ -128,6 +147,8 @@ function createSubastasRepository() {
         };
     }
 
+
+
     return {
         findAll,
         findById,
@@ -135,6 +156,8 @@ function createSubastasRepository() {
         findPendingAI,
         updateAIExtraction,
         getSystemStats,
+        aggregateByCategoria,
+        aggregateByProvincia
     };
 }
 
