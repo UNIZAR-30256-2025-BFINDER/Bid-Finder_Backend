@@ -1,4 +1,3 @@
-// ¡NO mockeamos authMiddleware! Usaremos autenticación real
 const request = require("supertest");
 const { MongoMemoryServer } = require("mongodb-memory-server");
 const mongoose = require("mongoose");
@@ -7,7 +6,6 @@ const app = require("../../app");
 const Usuario = require("../../app_server/models/usuario");
 const Subasta = require("../../app_server/models/subasta");
 
-// Configurar la clave secreta para el entorno de prueba
 process.env.JWT_SECRET = "testsecret";
 
 let mongoServer;
@@ -27,7 +25,6 @@ beforeEach(async () => {
     await Usuario.deleteMany({});
     await Subasta.deleteMany({});
 
-    // Crear subasta de prueba con todos los campos requeridos
     const subastaData = {
         _id: new mongoose.Types.ObjectId(),
         id: "BOE-TEST-1",
@@ -45,25 +42,22 @@ beforeEach(async () => {
 });
 
 describe("Favoritos - Concurrencia y persistencia", () => {
-    let token; // Token JWT
+    let token; 
     let userId;
     let subastaId;
 
     beforeEach(async () => {
-        // 1. Crear un usuario real en la BD
         const user = await Usuario.create({
             email: "test@test.com",
-            password: "hashedpassword", // Si tu modelo espera bcrypt, pon un hash real o mockea el proceso
+            password: "hashedpassword",
             nombre: "Test User",
         });
         userId = user._id.toString();
 
-        // 2. Generar un token JWT válido con la misma clave que usa tu backend
         token = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
             expiresIn: "1h",
         });
 
-        // 3. Obtener el ID público de la subasta
         const subasta = await Subasta.findOne();
         subastaId = subasta.id;
     });
@@ -73,7 +67,7 @@ describe("Favoritos - Concurrencia y persistencia", () => {
             .fill()
             .map(() =>
                 request(app)
-                    .post(`/favoritos/${subastaId}`) // Ajusta el prefijo según tu app
+                    .post(`/api/v1/favoritos/${subastaId}`) 
                     .set("Authorization", `Bearer ${token}`),
             );
 
@@ -87,17 +81,15 @@ describe("Favoritos - Concurrencia y persistencia", () => {
     });
 
     it("Concurrencia: añadir y eliminar rápidamente no debe dejar estado inconsistente", async () => {
-        // Añadir
         await request(app)
-            .post(`/favoritos/${subastaId}`)
+            .post(`/api/v1/favoritos/${subastaId}`)
             .set("Authorization", `Bearer ${token}`);
 
-        // Lanzar 5 eliminaciones simultáneas
         const deletes = Array(5)
             .fill()
             .map(() =>
                 request(app)
-                    .delete(`/favoritos/${subastaId}`)
+                    .delete(`/api/v1/favoritos/${subastaId}`)
                     .set("Authorization", `Bearer ${token}`),
             );
         await Promise.all(deletes);
@@ -107,19 +99,16 @@ describe("Favoritos - Concurrencia y persistencia", () => {
     });
 
     it("Persistencia tras reiniciar sesión: login → añadir → logout → login → lista contiene favorito", async () => {
-        // Añadir favorito
         await request(app)
-            .post(`/favoritos/${subastaId}`)
+            .post(`/api/v1/favoritos/${subastaId}`)
             .set("Authorization", `Bearer ${token}`);
 
-        // Generar un nuevo token (simula nuevo login del mismo usuario)
         const nuevoToken = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
             expiresIn: "1h",
         });
 
-        // Obtener favoritos con el nuevo token
         const response = await request(app)
-            .get("/favoritos")
+            .get("/api/v1/favoritos")
             .set("Authorization", `Bearer ${nuevoToken}`);
 
         expect(response.status).toBe(200);

@@ -22,9 +22,9 @@ jest.mock("../../app_server/services/subastasService", () => {
 
 const app = require("../../app");
 
-describe("GET /subastas/:id", () => {
+describe("GET /api/v1/subastas/:id", () => {
     test("debe devolver 200 y la subasta si el id existe", async () => {
-        const response = await request(app).get("/subastas/BOE-B-2026-112");
+        const response = await request(app).get("/api/v1/subastas/BOE-B-2026-112");
 
         expect(response.status).toBe(200);
         expect(response.body.status).toBe("success");
@@ -32,13 +32,13 @@ describe("GET /subastas/:id", () => {
     });
 
     test("debe devolver 404 si la subasta no existe", async () => {
-        const response = await request(app).get("/subastas/BOE-B-0000-000");
+        const response = await request(app).get("/api/v1/subastas/BOE-B-0000-000");
         expect(response.status).toBe(404);
         expect(response.body.error.message).toBe("Subasta no encontrada");
     });
 
     test("debe devolver 400 si el id es inválido", async () => {
-        const response = await request(app).get("/subastas/abc");
+        const response = await request(app).get("/api/v1/subastas/abc");
         expect(response.status).toBe(400);
         expect(response.body.error.message).toContain("identificador que comience con 'BOE'");
     });
