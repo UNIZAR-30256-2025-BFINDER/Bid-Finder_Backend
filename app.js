@@ -52,10 +52,20 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: "http://localhost:3000",
+                url: "http://localhost:3000/api/v1",
                 description: "Servidor Bfinder Backend",
             },
         ],
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: "http",
+                    scheme: "bearer",
+                    bearerFormat: "JWT",
+                    description: "Introduce tu token JWT aquí (sin la palabra 'Bearer')."
+                },
+            },
+        },
     },
     apis: ["./app_server/routes/*.js"],
 };
@@ -64,7 +74,7 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // Rutas de la API
-app.use("/", indexRouter);
+app.use("/api/v1", indexRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

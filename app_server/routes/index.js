@@ -21,6 +21,6 @@ router.use("/subastas", subastasRouter);
 router.use("/admin", adminRouter);
 router.use("/favoritos", favoritosRouter);
 router.use("/stats", statsRouter);
-router.use('/api/auth', authRoutes);
+router.use('/auth', authRoutes);
 
 module.exports = router;
