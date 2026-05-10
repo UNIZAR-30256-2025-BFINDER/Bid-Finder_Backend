@@ -2,6 +2,10 @@
   "name": "bid-finder-backend",
   "version": "0.0.0",
   "private": true,
+  "description": "API REST para BidFinder: Extracción, procesamiento con IA y gestión de subastas del BOE.",
+  "author": "Equipo05-BidFinder",
+  "license": "MIT",
+  "keywords": ["subastas", "boe", "ia", "gemini", "groq", "api", "rest"],
   "scripts": {
     "start": "node ./bin/www",
     "lint": "eslint .",

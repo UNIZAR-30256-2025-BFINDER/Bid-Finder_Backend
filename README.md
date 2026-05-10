@@ -308,3 +308,85 @@ Tras el parseo de un XML de subasta del BOE, se genera un objeto JSON con la sig
 ## Operaciones de guardado
 
 - `saveSubastas` (servicio) realiza un `bulkWrite` con `upsert` basado en el campo `id`, garantizando idempotencia.
+
+## 8. Módulos y Dependencias del Backend 
+
+Para la construcción del backend se han seleccionado las siguientes dependencias clave, priorizando el rendimiento, la seguridad y la mantenibilidad:
+
+* **express:** Framework principal para levantar el servidor HTTP y gestionar el enrutamiento y los middlewares de forma ágil.
+* **mongoose:** ODM (Object Data Modeling) para MongoDB. Permite definir esquemas estrictos, validaciones y relaciones, facilitando la interacción con la base de datos.
+* **winston:** Sistema de logging profesional. Permite registrar eventos (info, error) con marcas de tiempo, clave para la monitorización en producción y depuración.
+* **jsonwebtoken & bcryptjs:** El estándar de la industria para la seguridad. `bcryptjs` hashea las contraseñas para no guardarlas en texto plano, y `jsonwebtoken` gestiona la autenticación sin estado mediante JWT.
+* **fast-xml-parser:** Librería ultrarrápida elegida específicamente para convertir los feeds XML diarios del BOE a formato JSON manejable por la aplicación.
+* **@google/generative-ai & axios:** `axios` actúa como cliente HTTP para consumir APIs externas (BOE y Groq), mientras que el SDK oficial de Google permite integrar el modelo Gemini 2.5 Flash para la extracción de información estructurada.
+* **swagger-jsdoc & swagger-ui-express:** Herramientas para autogenerar y servir la documentación interactiva de la API basada en las especificaciones OpenAPI.
+* **jest & supertest:** Entorno de testing. `jest` para pruebas unitarias y `supertest` para simular peticiones HTTP en las pruebas de integración de la API.
+
+---
+
+## 9. Limitaciones Conocidas
+
+Durante el desarrollo y pruebas de BidFinder, se han identificado las siguientes limitaciones:
+
+1. **Campos vacíos por la política de la IA:** Para evitar alucinaciones (invención de datos), se ha configurado la IA mediante un prompt estricto. Si el XML del BOE no especifica claramente un dato (ej. el valor de tasación o las cargas previas), la IA lo deja nulo. El frontend está preparado para gestionar esto indicando "No disponible", pero limita la capacidad de filtrado numérico en algunas subastas.
+2. **Dependencia estructural del BOE:** El scraper (`xmlParserService`) depende de la estructura actual de los feeds XML del Boletín Oficial del Estado. Si el BOE realiza un rediseño de sus etiquetas XML, el servicio de ingesta requerirá una actualización.
+3. **Rate Limits de APIs Gratuitas:** Al utilizar los tiers gratuitos de los proveedores de IA, procesos masivos de ingesta histórica (Seeding) pueden verse interrumpidos si se superan las peticiones por minuto permitidas por Google o Groq. 
+
+---
+
+## 10. Puntos de Mejora y Trabajo Futuro
+
+Si el proyecto continuara su desarrollo, las principales áreas de mejora arquitectónica y funcional serían:
+
+1. **Sistema de Alertas por Email:** Implementar un cron job secundario (ej. usando `Nodemailer`) que envíe un resumen diario a los usuarios con las nuevas subastas que encajen en sus criterios de búsqueda guardados.
+2. **Caché con Redis:** Añadir una capa de caché en memoria para el endpoint de `/api/v1/estadisticas`. Dado que los cálculos analíticos son costosos, cachearlos reduciría la carga en MongoDB.
+3. **Ampliación de Fuentes de Datos:** Extender el patrón *Strategy* del proceso de ingesta para soportar no solo el BOE, sino también el Portal de Subastas de la Seguridad Social y portales autonómicos.
+
+## 11. Documentación de Testing (Backend)
+
+Se ha implementado una estrategia de pruebas exhaustiva utilizando **Jest** como motor de ejecución y **Supertest** para las pruebas de integración de la API. La cobertura global de código supera el **90%**.
+
+### Resumen de Pruebas Realizadas
+
+| Categoría | Herramientas | Componentes Probados | Estado |
+| :--- | :--- | :--- | :--- |
+| **Pruebas Unitarias** | Jest | **Controladores:** Auth, Subastas, Comentarios, Estadísticas, Ingesta.<br>**Servicios:** Lógica de negocio, integración con proveedores de IA (Gemini/Groq), Geolocalización.<br>**Repositorios:** Consultas directas a MongoDB mediante `MongoMemoryServer`. | ✅ 100% Pasadas |
+| **Pruebas de Integración** | Supertest | **API / Rutas:** Validación de endpoints, gestión de códigos HTTP (200, 201, 400, 404, 500) y flujo de cabeceras JWT. | ✅ 100% Pasadas |
+| **Pruebas de Concurrencia** | Jest | **Lógica de Favoritos:** Simulación de inserciones masivas simultáneas para validar la integridad de la base de datos (`$addToSet`). | ✅ 100% Pasadas |
+| **Middlewares y Jobs** | Jest | **Seguridad:** Validación de roles (admin/user) y protección de rutas.<br>**Automatización:** Verificación de lógica de los Cron Jobs de ingesta diaria. | 100% Pasadas |
+
+### Identificación y Resolución de Problemas (Troubleshooting)
+
+Durante la fase de validación se identificaron y documentaron los siguientes puntos:
+
+1. **Deprecación de Opciones de Mongoose:** Se identificaron avisos de Node sobre la opción `new` en `findOneAndUpdate`. 
+   * **Solución:** Se documentó para futura actualización a `returnDocument: 'after'`, aunque la funcionalidad actual es correcta y exitosa.
+
+## 12. Despliegue y Arquitectura en Producción
+
+El backend y la base de datos están alojados en proveedores Cloud (PaaS/DBaaS) con un pipeline de Integración y Despliegue Continuo (CI/CD) configurado mediante GitHub Actions:
+
+* **Backend (Render):** Hospedaje de la API REST Node.js/Express. Se despliega automáticamente tras pasar con éxito los tests del linter y Jest en GitHub Actions.
+* **Base de Datos (MongoDB Atlas):** Clúster gestionado en la nube para garantizar la persistencia y disponibilidad de los datos.
+
+### Limitaciones del Entorno Gratuito (Free Tier)
+* **Hibernación (Cold Start) en Render:** Al estar alojado en la capa gratuita, el servidor backend entra en hibernación tras 30 minutos de inactividad. La primera petición tras este periodo puede tardar entre 30 y 60 segundos en responder mientras la instancia se levanta. Las peticiones posteriores funcionarán a velocidad normal.
+* **Limitación de Almacenamiento:** MongoDB Atlas proporciona un clúster gratuito con un límite de 512MB, lo cual restringe la cantidad de histórico masivo de subastas que se puede almacenar a largo plazo.
+
+## 13. Accesos y Documentación Viva
+
+El sistema se encuentra accesible de forma pública, y la documentación OpenAPI (Swagger) puede consultarse e interactuar en vivo en:
+
+* **Documentación Interactiva (Swagger API):** [https://bid-finder-backend.onrender.com/api-docs/](https://bid-finder-backend.onrender.com/api-docs/)
+
+*(Nota: Cabe destacar que, por seguridad, nuestra política de CORS restringe las peticiones a la URL del frontend tanto de producción como desarrollo*
+
+## 14. Carga de Datos Inicial (Seeding)
+
+Aunque el sistema utiliza un cron job para la ingesta diaria, es posible realizar una carga de datos inicial (Startup) para poblar la base de datos en un entorno en blanco o para demostraciones.
+
+Disponemos de un script manual de "Seeding" que descarga el histórico hacia atrás y encola las tareas para ser procesadas por la IA. Se ejecuta desde la raíz del backend indicando los días de histórico que se desean extraer:
+
+```bash
+# Ejemplo: Extraer subastas de los últimos 3 días
+node app_server/jobs/seedingJob.js 3
