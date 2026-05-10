@@ -3,15 +3,21 @@ var router = express.Router();
 
 const createSubastasRepository = require("../repositories/subastasRepository");
 const createSubastasService = require("../services/subastasService");
+const createUsuariosRepository = require("../repositories/usuariosRepository");
+const createFavoritosService = require("../services/favoritosService");
 const createFavoritosController = require("../controllers/favoritosController");
+
 const { protect } = require("../middlewares/authMiddleware");
-const logger = require("../utils/logger"); // Ajusta la ruta según tu proyecto
+const logger = require("../utils/logger");
 
 const subastasRepository = createSubastasRepository();
-const subastasService = createSubastasService(subastasRepository);
-const favoritosController = createFavoritosController(subastasService, logger);
+const usuariosRepository = createUsuariosRepository();
 
-// Todas las rutas requieren autenticación
+const subastasService = createSubastasService(subastasRepository);
+const favoritosService = createFavoritosService(usuariosRepository, subastasService);
+
+const favoritosController = createFavoritosController(favoritosService, logger);
+
 router.use(protect);
 
 router.get("/", favoritosController.listFavorites);

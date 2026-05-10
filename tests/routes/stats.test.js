@@ -28,18 +28,18 @@ describe('Stats Routes', () => {
 
     beforeAll(() => {
         app = express();
-        const statsRouter = require('../../app_server/routes/stats');
-        app.use('/stats', statsRouter);
+        const statsRouter = require('../../app_server/routes/estadisticas');
+        app.use('/estadisticas', statsRouter);
     });
 
-    it('GET /stats/categorias responde 200 con datos', async () => {
-        const res = await request(app).get('/stats/categorias');
+    it('GET /estadisticas/categorias responde 200 con datos', async () => {
+        const res = await request(app).get('/estadisticas/categorias');
         expect(res.status).toBe(200);
         expect(res.body).toEqual({ success: true, data: [{ _id: 'INMUEBLE', total: 1 }] });
     });
 
-    it('GET /stats/provincias responde 200 con datos', async () => {
-        const res = await request(app).get('/stats/provincias');
+    it('GET /estadisticas/provincias responde 200 con datos', async () => {
+        const res = await request(app).get('/estadisticas/provincias');
         expect(res.status).toBe(200);
         expect(res.body).toEqual({ success: true, data: [{ _id: 'Madrid', total: 2 }] });
     });
