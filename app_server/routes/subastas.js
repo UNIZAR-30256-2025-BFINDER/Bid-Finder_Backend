@@ -107,6 +107,32 @@ const subastasController = createSubastasController(subastasService, logger);
  * 500:
  * description: Error interno del servidor
  */
+
+/**
+ * @swagger
+ * /subastas/{id}:
+ * get:
+ * summary: Obtiene una subasta específica por su ID
+ * tags: [Subastas]
+ * parameters:
+ * - in: path
+ * name: id
+ * schema:
+ * type: string
+ * required: true
+ * description: El ID de la subasta
+ * responses:
+ * 200:
+ * description: Detalles de la subasta obtenida exitosamente
+ * content:
+ * application/json:
+ * schema:
+ * $ref: '#/components/schemas/Subasta'
+ * 404:
+ * description: Subasta no encontrada
+ * 500:
+ * description: Error interno del servidor
+ */
 router.get('/', subastasController.getAllSubastas);
 
 /**

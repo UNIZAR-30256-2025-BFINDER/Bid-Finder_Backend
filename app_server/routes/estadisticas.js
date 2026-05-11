@@ -58,6 +58,41 @@ const statsController = createStatsController(statsService, logger);
  * 500:
  * description: Error interno del servidor
  */
+
+/**
+ * @swagger
+ * /estadisticas/provincias:
+ * get:
+ * summary: Obtiene estadísticas de subastas agrupadas por provincia (solo admin)
+ * tags: [Estadisticas]
+ * security:
+ * - bearerAuth: []
+ * responses:
+ * 200:
+ * description: Estadísticas por provincia obtenidas correctamente
+ * content:
+ * application/json:
+ * schema:
+ * type: object
+ * properties:
+ * success:
+ * type: boolean
+ * data:
+ * type: array
+ * items:
+ * type: object
+ * properties:
+ * provincia:
+ * type: string
+ * total:
+ * type: integer
+ * 401:
+ * description: No autorizado (Token faltante o inválido)
+ * 403:
+ * description: Prohibido (El usuario no tiene rol de admin)
+ * 500:
+ * description: Error interno del servidor
+ */
 router.get('/categorias', protect, isAdmin, statsController.getStatsSubastasPorCategoria);
 
 /**
