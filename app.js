@@ -27,7 +27,7 @@ if (process.env.NODE_ENV !== "test") {
  */
 const dominiosPermitidos = [
     'http://localhost:5173', 
-    'https://tu-proyecto-frontend.vercel.app' 
+    'https://bid-finder-frontend-web.vercel.app'
 ];
 
 var app = express();
