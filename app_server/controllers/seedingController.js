@@ -1,10 +1,10 @@
 /**
  * @fileoverview Controlador para la ingesta histórica (Seeding).
- * Orquesta la ejecución del controlador diario sobre un rango de fechas.
+ * Orquesta la ejecución del controlador diario sobre un rango de fechas hacia el pasado.
  */
 
 /**
- * Crea una instancia del controlador de seeding.
+ * Crea una instancia del controlador de seeding inyectando el controlador de ingesta.
  * @param {Object} ingestionController - El controlador diario ya instanciado.
  * @param {Object} logger - Sistema de logs.
  * @returns {Object} Controlador con el método de ejecución histórica.
@@ -12,8 +12,9 @@
 function createSeedingController(ingestionController, logger) {
     
     /**
-     * Ejecuta la ingesta para los últimos N días de forma secuencial.
-     * @param {number} daysToSeed - Cantidad de días hacia atrás a procesar.
+     * Ejecuta la ingesta de manera iterativa y secuencial para los últimos N días.
+     * Salta automáticamente los días sin publicación (error 404).
+     * @param {number} [days=3] - Cantidad de días hacia atrás a procesar.
      * @returns {Promise<void>}
      */
     async function runSeeding(days = 3) {

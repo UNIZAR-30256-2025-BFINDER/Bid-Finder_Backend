@@ -1,10 +1,14 @@
 /**
  * @fileoverview Modelo de datos para los Usuarios de la plataforma.
+ * Implementa cifrado de contraseñas mediante hooks de Mongoose (bcrypt).
  */
 
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
+/**
+ * Esquema de Mongoose para la colección de usuarios.
+ */
 const usuarioSchema = new mongoose.Schema(
     {
         nombre: {
@@ -27,7 +31,7 @@ const usuarioSchema = new mongoose.Schema(
             type: String,
             required: [true, "La contraseña es obligatoria"],
             minlength: [6, "La contraseña debe tener al menos 6 caracteres"],
-            select: false,
+            select: false, // Por seguridad, excluye la contraseña en las consultas por defecto
         },
         refreshToken: {
             type: String,
@@ -51,26 +55,29 @@ const usuarioSchema = new mongoose.Schema(
     },
     {
         timestamps: true,
-    },
+    }
 );
 
 /**
- * Encriptar contraseña antes de guardar en la base de datos.
+ * Middleware 'pre-save' de Mongoose.
+ * Intercepta el guardado del documento para cifrar la contraseña con bcrypt
+ * si (y solo si) el campo 'password' ha sido modificado.
  */
-usuarioSchema.pre("save", async function () {
+usuarioSchema.pre("save", async function (next) {
     if (!this.isModified("password")) {
-        return;
+        return next();
     }
 
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    next();
 });
 
 /**
- * Comparar la contraseña ingresada por el usuario
- * en el login con la contraseña encriptada guardada en la base de datos.
- * @param {string} enteredPassword - Contraseña en texto plano
- * @returns {boolean} True si coinciden, False si no.
+ * Método de instancia para verificar la contraseña ingresada en el inicio de sesión.
+ * Compara el texto plano con el hash guardado en la base de datos.
+ * @param {string} enteredPassword - Contraseña en texto plano a verificar.
+ * @returns {Promise<boolean>} Devuelve True si las contraseñas coinciden.
  */
 usuarioSchema.methods.matchPassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);

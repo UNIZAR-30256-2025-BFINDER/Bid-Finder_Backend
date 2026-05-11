@@ -1,5 +1,23 @@
+/**
+ * @fileoverview Servicio de gestión de comentarios.
+ * Conecta las reglas de validación de negocio con el repositorio de datos subyacente.
+ */
+
+/**
+ * Crea el servicio inyectando su repositorio correspondiente.
+ * @param {Object} comentariosRepository - Repositorio de persistencia de Mongo.
+ * @returns {Object} Interfaz de métodos del servicio.
+ */
 function createComentariosService(comentariosRepository) {
     
+    /**
+     * Valida y crea un nuevo comentario para un activo.
+     * @param {string} subasta_id - ID de la subasta a comentar.
+     * @param {string} usuario_id - ID del usuario autor del comentario.
+     * @param {string} texto - Cuerpo del mensaje.
+     * @returns {Promise<Object>} Comentario creado y poblado.
+     * @throws {Error} Si el texto está vacío o es puro espacio en blanco.
+     */
     async function crearComentario(subasta_id, usuario_id, texto) {
         if (!texto || texto.trim().length === 0) {
             throw new Error('El texto del comentario no puede estar vacío');
@@ -12,6 +30,11 @@ function createComentariosService(comentariosRepository) {
         });
     }
 
+    /**
+     * Recupera el hilo completo de mensajes asociados a un activo.
+     * @param {string} subasta_id - ID del BOE de la subasta.
+     * @returns {Promise<Array>} Lista de comentarios ordenados temporalmente.
+     */
     async function obtenerComentariosPorSubasta(subasta_id) {
         return await comentariosRepository.findBySubastaId(subasta_id);
     }

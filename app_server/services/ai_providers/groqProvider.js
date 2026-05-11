@@ -1,9 +1,15 @@
+/**
+ * @fileoverview Proveedor de Inteligencia Artificial utilizando Groq (Llama 3).
+ * Actúa como alternativa de alta velocidad y fallback.
+ */
+
 const axios = require('axios');
 const logger = require('../../utils/logger');
 
 /**
- * Proveedor de IA basado en Groq (ejecutando Llama 3).
- * 
+ * Instancia el proveedor de Groq con la clave de API proporcionada.
+ * @param {string} apiKey - Clave de autenticación para la API de Groq.
+ * @returns {Object} Objeto con la función `generate`.
  */
 function createGroqProvider(apiKey) {
     
@@ -11,6 +17,12 @@ function createGroqProvider(apiKey) {
         logger.warn('[Groq Provider] Advertencia: GROQ_API_KEY no está configurada.');
     }
 
+    /**
+     * Envía un prompt al modelo Llama 3 forzando un formato de salida JSON.
+     * @param {string} promptFinal - Datos extraídos que debe procesar la IA.
+     * @returns {Promise<string>} Respuesta en formato texto.
+     * @throws {Error} Si la clave no está configurada o la API rechaza la solicitud.
+     */
     async function generate(promptFinal) {
         if (!apiKey) throw new Error("API Key de Groq no configurada");
 

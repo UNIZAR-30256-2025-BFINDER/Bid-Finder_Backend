@@ -379,7 +379,7 @@ El sistema se encuentra accesible de forma pública, y la documentación OpenAPI
 
 * **Documentación Interactiva (Swagger API):** [https://bid-finder-backend.onrender.com/api-docs/](https://bid-finder-backend.onrender.com/api-docs/)
 
-*(Nota: Cabe destacar que, por seguridad, nuestra política de CORS restringe las peticiones a la URL del frontend tanto de producción como desarrollo*
+*(Nota: Cabe destacar que, por seguridad, nuestra política de CORS restringe las peticiones a la URL del frontend tanto de producción como desarrollo)*
 
 ## 14. Carga de Datos Inicial (Seeding)
 

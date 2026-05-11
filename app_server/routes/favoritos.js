@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Definición de rutas protegidas para la gestión de favoritos del usuario.
+ * Aplica el middleware `protect` de forma global a todo el router.
+ */
+
 var express = require("express");
 var router = express.Router();
 
@@ -18,6 +23,7 @@ const favoritosService = createFavoritosService(usuariosRepository, subastasServ
 
 const favoritosController = createFavoritosController(favoritosService, logger);
 
+// Protege todas las rutas de este bloque exigiendo un JWT válido
 router.use(protect);
 
 router.get("/", favoritosController.listFavorites);

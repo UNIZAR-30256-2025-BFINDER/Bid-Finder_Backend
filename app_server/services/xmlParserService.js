@@ -1,10 +1,16 @@
 /**
- * @fileoverview Motor genérico de parseo XML.
- * No contiene lógica de negocio; utiliza funciones inyectadas (strategy) para filtrar y mapear.
+ * @fileoverview Motor de parseo XML agnóstico (General-purpose XML Parser).
+ * Convierte los documentos en bruto del BOE en estructuras JSON navegables.
+ * No contiene lógica de negocio; utiliza el patrón Strategy para inyectar reglas de filtrado.
  */
 
 const { XMLParser } = require("fast-xml-parser");
 
+/**
+ * Configuración del analizador sintáctico.
+ * Fuerza a que elementos repetitivos se parseen como arrays incluso si solo hay uno,
+ * evitando errores de "undefined is not iterable" en pasos posteriores.
+ */
 const parserConfig = {
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
@@ -14,9 +20,10 @@ const parserConfig = {
 const parser = new XMLParser(parserConfig);
 
 /**
- * Parsea un XML y delega la extracción/mapeo a una función externa.
- * @param {string} xmlString - El XML crudo.
- * @param {Function} strategyFn - La función que sabe cómo navegar el JSON resultante.
+ * Convierte un documento XML en JSON y le aplica una estrategia de extracción concreta.
+ * @param {string} xmlString - El código fuente XML crudo (buffer o string).
+ * @param {Function} strategyFn - Función de orden superior que determina qué datos extraer del JSON.
+ * @returns {any} El resultado procesado y devuelto por la estrategia inyectada.
  */
 function processXml(xmlString, strategyFn) {
     const jsonObj = parser.parse(xmlString);

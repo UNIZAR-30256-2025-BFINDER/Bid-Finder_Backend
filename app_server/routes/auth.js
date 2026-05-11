@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Definición de rutas públicas para la autenticación.
+ * Gestiona el registro, inicio de sesión y renovación de tokens JWT.
+ */
+
 const express = require('express');
 const router = express.Router();
 const createAuthController = require('../controllers/authController');

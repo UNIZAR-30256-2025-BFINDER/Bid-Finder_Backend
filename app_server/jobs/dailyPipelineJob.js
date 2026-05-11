@@ -1,7 +1,7 @@
 /**
  * @fileoverview Orquestador del pipeline diario completo.
- * Coordina la ingesta del BOE y el procesamiento de IA en secuencia.
- * Es el único punto de entrada para el cron job de producción.
+ * Coordina la ejecución secuencial: Ingesta del BOE -> Análisis de IA y Geocoding.
+ * Diseñado para ser el único punto de entrada de la tarea Cron.
  */
 
 const { runIngestion, isNoPublicationError } = require('./boeIngestionJob');
@@ -9,7 +9,10 @@ const { runWorker }                          = require('./aiWorkerJob');
 const buildContainer                         = require('../config/container');
 
 /**
- * @param {Date} [executionDate]
+ * Enlaza y controla el flujo completo de obtención y enriquecimiento de datos.
+ * Asegura que el Worker de IA no arranque si la ingesta falla críticamente.
+ * @param {Date} [executionDate=new Date()] - Fecha a procesar.
+ * @returns {Promise<number>} Código de salida del sistema.
  */
 async function runDailyPipeline(executionDate = new Date()) {
     const deps = buildContainer();
@@ -33,6 +36,7 @@ async function runDailyPipeline(executionDate = new Date()) {
     }
 }
 
+// Ejecución directa si se invoca desde CLI
 if (require.main === module) {
     runDailyPipeline().then(process.exit);
 }

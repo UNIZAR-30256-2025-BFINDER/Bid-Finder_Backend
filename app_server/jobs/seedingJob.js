@@ -1,5 +1,6 @@
 /**
- * @fileoverview Script ejecutable desde terminal para poblar la base de datos con históricos.
+ * @fileoverview Tarea ejecutable para poblar la base de datos con históricos.
+ * Retrocede 'N' días descargando, almacenando y posteriormente enriqueciendo con IA todo el volumen.
  */
 
 const connectDB = require('../config/database');
@@ -10,8 +11,10 @@ const buildContainer = require('../config/container');
 const deps = buildContainer();
 const seedingController = createSeedingController(deps.ingestionController, deps.logger);
 
+// Recepción y validación de argumentos al ejecutar desde terminal
 if (require.main === module) {
     const args = process.argv.slice(2);
+    // Por defecto retrocede 3 días si no se especifica
     const daysToSeed = args.length > 0 ? parseInt(args[0], 10) : 3;
 
     if (isNaN(daysToSeed) || daysToSeed <= 0) {

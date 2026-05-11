@@ -1,7 +1,15 @@
 /**
  * @fileoverview Controlador principal de la orquestación de la ingesta de datos.
+ * Se encarga de descargar el sumario diario, filtrar anuncios y guardarlos en BD.
  */
 
+/**
+ * Divide un array en múltiples arrays más pequeños.
+ * Utilizado para controlar la concurrencia en las llamadas a la API del BOE.
+ * @param {Array} array - Array original a dividir.
+ * @param {number} size - Tamaño máximo de cada lote.
+ * @returns {Array<Array>} Array de lotes.
+ */
 function chunkArray(array, size) {
     const chunked = [];
     for (let i = 0; i < array.length; i += size) {
@@ -10,8 +18,23 @@ function chunkArray(array, size) {
     return chunked;
 }
 
+/**
+ * Crea el controlador de ingesta inyectando los servicios necesarios.
+ * @param {Object} boeService - Servicio HTTP para comunicarse con el BOE.
+ * @param {Object} xmlParser - Servicio para parsear respuestas XML a JSON.
+ * @param {Object} logger - Sistema de logs.
+ * @param {Object} config - Configuración global de la aplicación (límites, dominios).
+ * @param {Object} ingestionRules - Reglas de filtrado y mapeo de subastas.
+ * @param {Object} subastasRepository - Repositorio para guardar en MongoDB.
+ * @returns {Object} Controlador de ingesta (runDailyIngestion).
+ */
 function createIngestionController(boeService, xmlParser, logger, config, ingestionRules, subastasRepository) {
     
+    /**
+     * Ejecuta el proceso de descarga, parseo y guardado de las subastas publicadas en una fecha.
+     * @param {Date} [date=new Date()] - Fecha del sumario a buscar (por defecto, hoy).
+     * @returns {Promise<boolean>} Devuelve true al finalizar correctamente.
+     */
     async function runDailyIngestion(date = new Date()) {
         const sumarioXml = await boeService.fetchSumario(date);
         logger.info(`[Ingestion Controller] Sumario obtenido. Buscando items...`);

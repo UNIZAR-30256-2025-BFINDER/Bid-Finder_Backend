@@ -1,6 +1,7 @@
 /**
- * System Prompt principal para la extracción de datos de subastas del BOE.
- * Está diseñado para forzar una salida JSON estricta y predecible.
+ * @fileoverview Prompt principal inyectado a los modelos de Lenguaje (LLMs).
+ * Obliga al modelo a extraer entidades específicas, a respetar tipos de datos
+ * y a devolver siempre un formato JSON estricto sin desviarse.
  */
 
 const SUBASTA_EXTRACTION_PROMPT = `Eres un experto legal y analista de datos especializado en el Boletín Oficial del Estado (BOE) de España.
@@ -31,7 +32,6 @@ Estructura estricta del JSON esperado:
   "ocupantes": <String o null. Describe la situación de ocupación del inmueble. Ejemplos: "Sí, ocupantes sin título", "Sí, inquilinos con contrato de alquiler", "No constan ocupantes", "Desconocido". Si el texto no menciona nada sobre ocupación, pon null.>,
   "cargas_previas": <String o null. Describe cualquier carga, gravamen, hipoteca, embargo, usufructo o servidumbre que pese sobre el bien. Ejemplos: "Hipoteca pendiente de 30.000€", "Usufructo vitalicio a favor de tercero", "No constan cargas". Si el texto no menciona cargas explícitamente, pon null.>
 }
-
 
 IMPORTANTE: Cuando encuentres un nombre propio de un municipio, ciudad, pueblo, provincia o región de España, cógelo como zona. Si no hay, pon null. No inventes ni uses frases genéricas.
 

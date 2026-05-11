@@ -1,5 +1,22 @@
+/**
+ * @fileoverview Controlador principal para la consulta y detalle de subastas.
+ * Implementa filtros dinámicos por query string y búsqueda por identificador.
+ */
+
+/**
+ * Crea el controlador de subastas inyectando sus dependencias.
+ * @param {Object} subastasService - Servicio de base de datos para búsqueda de subastas.
+ * @param {Object} logger - Sistema de logs.
+ * @returns {Object} Métodos del controlador (getSubastaById, getAllSubastas).
+ */
 function createSubastasController(subastasService, logger) {
     
+    /**
+     * Recupera una lista de subastas aplicando los filtros definidos en la query string.
+     * @param {Object} req - Objeto de petición de Express (lee req.query).
+     * @param {Object} res - Objeto de respuesta de Express.
+     * @returns {Promise<Object>} Respuesta JSON con el listado y metadatos de los filtros.
+     */
     async function getAllSubastas(req, res) {
         try {
             const { provincia, categoria, precio_min, precio_max, nivel_oportunidad, q } = req.query;
@@ -33,6 +50,12 @@ function createSubastasController(subastasService, logger) {
         }
     }
 
+    /**
+     * Recupera los detalles completos de una subasta mediante su ID.
+     * @param {Object} req - Objeto de petición de Express (requiere req.params.id).
+     * @param {Object} res - Objeto de respuesta de Express.
+     * @returns {Promise<Object>} Respuesta JSON con el detalle de la subasta o 404 si no existe.
+     */
     async function getSubastaById(req, res) {
         try {
             const id = String(req.params.id);

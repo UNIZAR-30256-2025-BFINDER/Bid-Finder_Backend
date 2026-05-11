@@ -1,15 +1,21 @@
 /**
- * @fileoverview Validador de esquemas para las respuestas de la IA.
- * Garantiza que los datos tengan el tipo correcto antes de guardarlos.
+ * @fileoverview Validador de esquemas para las respuestas de la Inteligencia Artificial.
+ * Garantiza que los datos tengan el tipo y formato correctos antes de guardarlos en BD,
+ * actuando como un escudo contra alucinaciones del modelo.
  */
 
-// Validación básica de zona: solo letras, espacios, longitud razonable, y no frases genéricas
+/**
+ * Valida que una cadena de texto corresponda a un municipio/zona real y no a
+ * texto legal genérico extraído por error.
+ * @param {string} zona - Texto extraído por la IA como ubicación.
+ * @returns {boolean} True si el texto parece una zona geográfica válida.
+ */
 function esZonaValida(zona) {
     if (typeof zona !== "string" || zona === null) return false;
     const z = zona.trim();
-    // Solo letras, espacios, guiones y tildes, longitud 2-40
+
     if (!/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\- ]{2,40}$/.test(z)) return false;
-    // Rechaza frases genéricas típicas
+
     const frasesInvalidas = [
         "la presente convocatoria",
         "virtud del contrato",
@@ -27,6 +33,13 @@ function esZonaValida(zona) {
     return !frasesInvalidas.some((f) => z.toLowerCase().includes(f));
 }
 
+/**
+ * Recorre y sanea el objeto JSON devuelto por la IA asegurando tipos de datos.
+ * Sustituye por `null` cualquier campo que no cumpla con su esquema predefinido.
+ * @param {Object} data - Objeto JSON crudo devuelto por el LLM.
+ * @returns {Object} Nuevo objeto saneado listo para ser guardado en MongoDB.
+ * @throws {Error} Si la respuesta principal no es un objeto.
+ */
 function validarDatosSubasta(data) {
     if (!data || typeof data !== "object") {
         throw new Error("La respuesta de la IA no es un objeto válido.");
@@ -34,6 +47,7 @@ function validarDatosSubasta(data) {
 
     const CATEGORIAS = ["inmueble", "vehiculo", "maquinaria", "otros"];
 
+    // Definición de reglas de validación por campo
     const esquema = {
         titulo_resumido: (v) => typeof v === "string" || v === null,
         resumen: (v) => typeof v === "string" || v === null,

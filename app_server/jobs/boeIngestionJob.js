@@ -1,23 +1,35 @@
 /**
- * @fileoverview Tarea de ingesta diaria del BOE.
- * Solo responsable de descargar y persistir subastas.
+ * @fileoverview Script automatizable para realizar la consulta e ingesta de datos del BOE.
+ * Valida la existencia de publicación antes de lanzar peticiones HTTP masivas.
  */
 
 const connectDB  = require('../config/database');
 
+/**
+ * Evalúa si el error corresponde a una falta de publicación por parte del estado.
+ * @param {Error} error - Objeto de error HTTP.
+ * @returns {boolean} True si es un 404 natural o mensaje semántico asociado.
+ */
 function isNoPublicationError(error) {
     if (error.response && error.response.status === 404) return true;
     const message = error.message || '';
     return message.includes('no data') || message.includes('No se encontró publicación');
 }
 
+/**
+ * Chequea reglas lógicas temporales (el BOE habitualmente no publica en domingo).
+ * @param {Date} date - Fecha de evaluación.
+ * @returns {boolean} True si es domingo.
+ */
 function isNonPublicationDay(date) {
-    return date.getDay() === 0;
+    return date.getDay() === 0; // 0 equivale a Domingo
 }
 
 /**
- * @param {{ ingestionController, logger }} deps
- * @param {Date} [executionDate]
+ * Ejecuta el controlador diario de ingesta conectándose previamente a la base de datos.
+ * @param {Object} deps - Contenedor con dependencias inyectadas.
+ * @param {Date} [executionDate=new Date()] - Fecha objetivo de la ingesta.
+ * @returns {Promise<number>} Código de salida (0 éxito).
  */
 async function runIngestion(deps, executionDate = new Date()) {
     const { ingestionController, logger } = deps;
@@ -35,6 +47,7 @@ async function runIngestion(deps, executionDate = new Date()) {
     return 0;
 }
 
+// Ejecución directa si se invoca desde CLI
 if (require.main === module) {
     const buildContainer = require('../config/container');
     const deps = buildContainer();

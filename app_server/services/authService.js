@@ -7,9 +7,9 @@ const Usuario = require('../models/usuario');
 const jwt = require('jsonwebtoken');
 
 /**
- * Función auxiliar para generar un JWT
- * @param {string} id - El ID del usuario en la base de datos
- * @returns {string} Token JWT firmado
+ * Función auxiliar para generar un par de tokens (Access y Refresh).
+ * @param {string} id - El ID interno del usuario en la base de datos.
+ * @returns {{accessToken: string, refreshToken: string}} Objeto con ambos tokens firmados.
  */
 const generarTokens = (id) => {
     const accessToken = jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -22,9 +22,10 @@ const generarTokens = (id) => {
 };
 
 /**
- * Servicio para registrar un nuevo usuario.
- * @param {Object} datosUsuario - { nombre, email, password }
- * @returns {Promise<Object>} Usuario creado (sin la contraseña) y token
+ * Registra un nuevo usuario validando que el correo no exista previamente.
+ * @param {Object} datosUsuario - Objeto con { nombre, email, password }.
+ * @returns {Promise<Object>} Datos de sesión del usuario (sin contraseña) y sus tokens.
+ * @throws {Error} Si el correo ya está registrado en el sistema.
  */
 async function registrarUsuario(datosUsuario) {
     const { nombre, email, password } = datosUsuario;
@@ -57,10 +58,11 @@ async function registrarUsuario(datosUsuario) {
 }
 
 /**
- * Servicio para hacer login de un usuario.
- * @param {string} email 
- * @param {string} password 
- * @returns {Promise<Object>} Datos del usuario y token
+ * Autentica un usuario verificando su email y contraseña.
+ * @param {string} email - Correo del usuario.
+ * @param {string} password - Contraseña en texto plano.
+ * @returns {Promise<Object>} Datos de sesión del usuario y nuevos tokens.
+ * @throws {Error} Si el usuario no existe o la contraseña es incorrecta (401).
  */
 async function loginUsuario(email, password) {
     const usuario = await Usuario.findOne({ email }).select('+password');
@@ -94,7 +96,10 @@ async function loginUsuario(email, password) {
 }
 
 /**
- * Servicio para renovar el Access Token usando un Refresh Token válido
+ * Renueva el Access Token de un usuario utilizando su Refresh Token vigente.
+ * @param {string} refreshTokenViejo - Refresh Token almacenado por el cliente.
+ * @returns {Promise<{accessToken: string, refreshToken: string}>} Nuevo par de tokens.
+ * @throws {Error} Si el token es inválido, ha expirado o no coincide con la BD.
  */
 async function renovarToken(refreshTokenViejo) {
     if (!refreshTokenViejo) throw new Error('Refresh token no proporcionado');
@@ -120,8 +125,4 @@ async function renovarToken(refreshTokenViejo) {
     }
 }
 
-module.exports = {
-    registrarUsuario,
-    loginUsuario,
-    renovarToken 
-};
+module.exports = { registrarUsuario, loginUsuario, renovarToken };

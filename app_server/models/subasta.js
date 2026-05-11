@@ -1,11 +1,18 @@
+/**
+ * @fileoverview Modelo de datos principal para las Subastas.
+ * Integra campos crudos extraídos del BOE y campos procesados por la IA.
+ * Incluye configuración avanzada de índices geoespaciales y de texto.
+ */
+
 const mongoose = require("mongoose");
 const NIVEL_OPORTUNIDAD_PRIORIDAD = ["ALTO", "MEDIO", "BAJO"];
 const CATEGORIAS_PERMITIDAS = ["INMUEBLE", "VEHICULO", "MAQUINARIA", "OTROS"];
 
-
+/**
+ * Esquema de Mongoose para la colección de subastas.
+ */
 const subastaSchema = new mongoose.Schema(
     {
-        // Identificador único del BOE (ej: "BOE-B-2026-112")
         id: {
             type: String,
             required: true,
@@ -17,7 +24,7 @@ const subastaSchema = new mongoose.Schema(
             required: true,
         },
         fechaPublicacion: {
-            type: String, // formato YYYYMMDD
+            type: String, 
             required: true,
         },
         urlPdf: {
@@ -78,12 +85,10 @@ const subastaSchema = new mongoose.Schema(
             default: null,
             index: true,
         },
-        // XML original recibido
         rawXml: {
             type: String,
             required: true,
         },
-        // Coordenadas geoJSON (Point)
         location: {
             type: {
                 type: String,
@@ -92,17 +97,15 @@ const subastaSchema = new mongoose.Schema(
                 default: undefined,
             },
             coordinates: {
-                type: [Number], // [lon, lat]
+                type: [Number],
                 required: false,
                 default: undefined,
             },
         },
-        // Fecha de extracción (se asigna automáticamente al crear)
         fechaExtraccion: {
             type: Date,
             default: Date.now,
         },
-        // Campos de riesgo legal, ocupación y cargas, extraídos por la IA
         riesgo_legal: {
             type: String,
             enum: ["Alto", "Medio", "Bajo"],
@@ -118,16 +121,17 @@ const subastaSchema = new mongoose.Schema(
         },
     },
     {
-        timestamps: true, // añade createdAt y updatedAt automáticamente
-    },
+        timestamps: true, 
+    }
 );
 
-// Índice geoespacial para búsquedas por proximidad
+// Índice geoespacial para búsquedas por proximidad y bounding boxes
 subastaSchema.index({ location: "2dsphere" });
 
-// Crear índice compuesto si se necesita alguna búsqueda adicional
+// Crear índice compuesto para búsquedas temporales
 subastaSchema.index({ fechaPublicacion: -1 });
 
+// Índice de texto múltiple con pesos para optimizar la búsqueda global (Full-Text Search)
 subastaSchema.index({
     titulo_resumido: "text",
     resumen: "text",
@@ -160,4 +164,5 @@ subastaSchema.index({
 const Subasta = mongoose.model("Subasta", subastaSchema);
 Subasta.NIVEL_OPORTUNIDAD_PRIORIDAD = NIVEL_OPORTUNIDAD_PRIORIDAD;
 Subasta.CATEGORIAS_PERMITIDAS = CATEGORIAS_PERMITIDAS;
+
 module.exports = Subasta;

@@ -1,7 +1,12 @@
 /**
- * @fileoverview Reglas de negocio específicas para la extracción de Subastas.
+ * @fileoverview Reglas de negocio específicas para la extracción y filtrado de Subastas del BOE.
  */
 
+/**
+ * Extrae y concatena el texto contenido en los nodos de párrafo de un documento XML.
+ * @param {Object} textoNode - Nodo de texto extraído del XML parseado.
+ * @returns {string} Texto limpio y concatenado.
+ */
 function extraerTextoDesdeTextoNode(textoNode) {
     if (!textoNode) return "";
     let parrafos = textoNode.p;
@@ -13,7 +18,19 @@ function extraerTextoDesdeTextoNode(textoNode) {
         .join("\n");
 }
 
+/**
+ * Objeto que encapsula las estrategias y reglas de filtrado para procesar subastas.
+ * @namespace subastasRules
+ */
 const subastasRules = {
+    /**
+     * Evalúa si un ítem del BOE corresponde a una subasta válida basándose en su jerarquía.
+     * @param {Object} seccion - Nodo de sección del XML.
+     * @param {Object} departamento - Nodo de departamento del XML.
+     * @param {Object|null} epigrafe - Nodo de epígrafe del XML, si existe.
+     * @param {Object} item - Nodo del ítem a evaluar.
+     * @returns {boolean} True si cumple las condiciones de subasta, False en caso contrario.
+     */
     filterCondition: (seccion, departamento, epigrafe, item) => {
         const nombreSeccion = String(seccion['@_nombre'] || seccion.nombre || "").toUpperCase();
         if (!nombreSeccion.includes('ANUNCIOS')) return false;
@@ -30,6 +47,12 @@ const subastasRules = {
         return esTituloSubasta || esEpigrafeSubasta;
     },
     
+    /**
+     * Transforma un documento XML crudo en un objeto preliminar de Subasta.
+     * Aplica filtros de descarte rápido (ej. enlaces huérfanos o vehículos).
+     * @param {Object} documento - Documento parseado del BOE.
+     * @returns {Object|null} Objeto subasta formateado, o null si es descartado por las reglas.
+     */
     mapFn: (documento) => {
         const metadatos = documento.metadatos || {};
         const textoLimpio = extraerTextoDesdeTextoNode(documento.texto);
@@ -58,6 +81,11 @@ const subastasRules = {
         };
     },
 
+    /**
+     * Estrategia de recorrido para extraer identificadores y URLs a partir del sumario diario del BOE.
+     * @param {Object} jsonObj - JSON resultante de parsear el XML del sumario.
+     * @returns {Array<{id: string, titulo: string, urlXml: string}>} Lista de ítems encontrados.
+     */
     extractSumarioStrategy: (jsonObj) => {
         const itemsEncontrados = [];
         const diario = jsonObj.response?.data?.sumario?.diario;
@@ -93,6 +121,12 @@ const subastasRules = {
         return itemsEncontrados;
     },
 
+    /**
+     * Estrategia para extraer y validar los detalles de un anuncio individual.
+     * @param {Object} jsonObj - JSON resultante de parsear el XML del anuncio.
+     * @returns {Object|null} Datos procesados mediante mapFn.
+     * @throws {Error} Si el XML carece de la estructura mínima requerida.
+     */
     extractAnuncioStrategy: (jsonObj) => {
         const documento = jsonObj.documento;
         if (!documento) throw new Error("El XML proporcionado no tiene la etiqueta raíz <documento>.");

@@ -1,7 +1,7 @@
 /**
- * @fileoverview Worker encargado de vaciar la cola de subastas PENDIENTES,
- * enviándolas a la Inteligencia Artificial respetando los Rate Limits.
- *
+ * @fileoverview Proceso en segundo plano responsable de procesar la cola de subastas.
+ * Extrae subastas 'PENDIENTES', las envía a los LLMs, ejecuta geocodificación
+ * y actualiza la base de datos controlando límites de cuota.
  */
 
 const connectDB = require("../config/database");
@@ -15,12 +15,19 @@ const {
 const BATCH_SIZE = AI_WORKER.BATCH_SIZE;
 const DELAY_MS = AI_WORKER.DELAY_MS;
 
+/**
+ * Detiene la ejecución asíncrona durante un tiempo determinado.
+ * @param {number} ms - Milisegundos de espera.
+ * @returns {Promise<void>}
+ */
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * @param {{ subastasRepository, aiService, logger }} deps
+ * Ejecuta el lote de procesamiento de IA y Geocoding.
+ * @param {Object} deps - Contenedor de dependencias (repositorio, servicios, logger).
+ * @returns {Promise<number>} Código de salida (0 éxito).
  */
 async function runWorker(deps) {
     const { subastasRepository, aiService, logger, geoCodingService } = deps;
@@ -35,17 +42,11 @@ async function runWorker(deps) {
         return 0;
     }
 
-    logger.info(
-        `[AI Worker] Se han encontrado ${pendientes.length} subastas pendientes. Procesando...`,
-    );
-
-    // Geocoding dependencies
+    logger.info(`[AI Worker] Se han encontrado ${pendientes.length} subastas pendientes. Procesando...`);
 
     for (let i = 0; i < pendientes.length; i++) {
         const subasta = pendientes[i];
-        logger.info(
-            `[AI Worker] (${i + 1}/${pendientes.length}) Analizando ${subasta.id}...`,
-        );
+        logger.info(`[AI Worker] (${i + 1}/${pendientes.length}) Analizando ${subasta.id}...`);
 
         try {
             const datosExtraidos = await aiService.extraerDatosSubasta(
@@ -53,18 +54,16 @@ async function runWorker(deps) {
                 SUBASTA_EXTRACTION_PROMPT,
             );
 
-            const diferencia_porcentual_oportunidad =
-                calcularDiferenciaPorcentual(
-                    datosExtraidos.precio_salida,
-                    datosExtraidos.valor_tasacion,
-                );
+            const diferencia_porcentual_oportunidad = calcularDiferenciaPorcentual(
+                datosExtraidos.precio_salida,
+                datosExtraidos.valor_tasacion,
+            );
 
             const nivel_oportunidad = calcularNivelOportunidad(
                 datosExtraidos.precio_salida,
                 datosExtraidos.valor_tasacion,
             );
 
-            // Geocoding justo después de la IA
             let direccion = datosExtraidos.direccion || "";
             let municipio = datosExtraidos.zona || ""; 
 
@@ -78,13 +77,10 @@ async function runWorker(deps) {
                 }
             }
 
-            const geoResult = await geoCodingService.getCoordinatesFromAddress(
-                direccion,
-                municipio,
-            );
+            const geoResult = await geoCodingService.getCoordinatesFromAddress(direccion, municipio);
 
             logger.info(
-                `[GeoCoding] Subasta ${subasta.id} dirección: "${direccion}" municipio: "${municipio}" resultado: ${geoResult.geojson ? "OK" : "NO"} fallback: ${geoResult.fallbackUsed}`,
+                `[GeoCoding] Subasta ${subasta.id} dirección: "${direccion}" municipio: "${municipio}" resultado: ${geoResult.geojson ? "OK" : "NO"} fallback: ${geoResult.fallbackUsed}`
             );
 
             await subastasRepository.updateAIExtraction(
@@ -92,15 +88,14 @@ async function runWorker(deps) {
                 {
                     titulo_resumido: datosExtraidos.titulo_resumido ?? null,
                     resumen: datosExtraidos.resumen ?? null,
-                        categoria: datosExtraidos.categoria ?? null,
+                    categoria: datosExtraidos.categoria ?? null,
                     precio_salida: datosExtraidos.precio_salida ?? null,
                     valor_tasacion: datosExtraidos.valor_tasacion ?? null,
                     diferencia_porcentual_oportunidad,
                     nivel_oportunidad,
                     direccion: datosExtraidos.direccion ?? null,
                     zona: datosExtraidos.zona ?? null,
-                    referencia_catastral:
-                        datosExtraidos.referencia_catastral ?? null,
+                    referencia_catastral: datosExtraidos.referencia_catastral ?? null,
                     location: geoResult.geojson || null,
                     riesgo_legal: datosExtraidos.riesgo_legal ?? null,
                     ocupantes: datosExtraidos.ocupantes ?? null,
@@ -118,20 +113,12 @@ async function runWorker(deps) {
             const errMsg = error.message || "";
 
             if (isQuotaError(errMsg)) {
-                logger.warn(
-                    "[AI Worker] Límite de cuota alcanzado. Deteniendo el worker hasta la próxima ejecución.",
-                );
+                logger.warn("[AI Worker] Límite de cuota alcanzado. Deteniendo el worker hasta la próxima ejecución.");
                 break;
             }
 
-            logger.error(
-                `[AI Worker] Error procesando ${subasta.id}: ${errMsg}`,
-            );
-            await subastasRepository.updateAIExtraction(
-                subasta.id,
-                {},
-                "ERROR",
-            );
+            logger.error(`[AI Worker] Error procesando ${subasta.id}: ${errMsg}`);
+            await subastasRepository.updateAIExtraction(subasta.id, {}, "ERROR");
         }
     }
 
@@ -140,9 +127,9 @@ async function runWorker(deps) {
 }
 
 /**
- * Determina si el error es de cuota/rate-limit.
- * Centralizado aquí para no repetir el string-matching en otros sitios.
- * @param {string} message
+ * Determina si el error devuelto por la IA corresponde a un exceso de cuota o rate-limit.
+ * @param {string} message - Mensaje de error a evaluar.
+ * @returns {boolean} True si es un error de cuota.
  */
 function isQuotaError(message) {
     return (
@@ -153,6 +140,7 @@ function isQuotaError(message) {
     );
 }
 
+// Ejecución directa si se invoca desde CLI
 if (require.main === module) {
     const buildContainer = require("../config/container");
     const deps = buildContainer();

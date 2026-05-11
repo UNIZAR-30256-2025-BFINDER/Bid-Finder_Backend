@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Contenedor de Inyección de Dependencias
+ * Orquesta la instanciación y el enlazado de servicios, repositorios y controladores.
+ */
+
 const createSubastasRepository = require('../repositories/subastasRepository');
 const createGeminiProvider     = require('../services/ai_providers/geminiProvider');
 const createGroqProvider       = require('../services/ai_providers/groqProvider');
@@ -13,6 +18,10 @@ const subastasRules            = require('./subastasRules');
 const axios = require('axios');
 const https = require('https');
 
+/**
+ * Construye todas las dependencias del sistema inyectando los clientes y configuraciones necesarias.
+ * @returns {Object} Instancias de los servicios, repositorios y controladores listos para usar.
+ */
 function buildContainer() {
     const httpsAgent = new https.Agent({ keepAlive: true });
     const httpClient = axios.create({ 

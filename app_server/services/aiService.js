@@ -1,21 +1,24 @@
 /**
  * @fileoverview Servicio de IA con sistema de fallback en cascada.
- * Recibe los proveedores y el logger por inyección de dependencias.
+ * Encargado de orquestar los diferentes proveedores y validar la respuesta.
  */
 
 const { validarDatosSubasta } = require('../utils/aiResponseValidator');
 
 /**
- * @param {Array<{generate: Function}>} aiProviders - Proveedores en orden de prioridad.
- * @param {{ warn: Function, error: Function }} [logger=console] - Logger inyectado.
+ * Crea el servicio de inteligencia artificial inyectando los proveedores disponibles.
+ * @param {Array<{generate: Function}>} aiProviders - Proveedores en orden de prioridad de uso.
+ * @param {Object} [logger=console] - Logger inyectado para registrar fallos o cuotas excedidas.
+ * @returns {Object} Servicio con el método `extraerDatosSubasta`.
  */
 function createAiService(aiProviders, logger = console) {
 
     /**
-     * Extrae datos estructurados de un texto legal crudo.
+     * Extrae datos estructurados de un texto legal crudo delegando la tarea al primer LLM disponible.
      * @param {string} textoBoletin - El texto bruto extraído del XML del BOE.
      * @param {string} systemPrompt - Las instrucciones estrictas para la IA.
-     * @returns {Promise<Object>} - El JSON parseado y validado con los datos.
+     * @returns {Promise<Object>} - El JSON parseado y validado con los datos estructurados.
+     * @throws {Error} Si todos los proveedores fallan en cascada.
      */
     async function extraerDatosSubasta(textoBoletin, systemPrompt) {
         const promptFinal = `${systemPrompt}\n\nTEXTO DE LA SUBASTA:\n${textoBoletin}`;
@@ -26,6 +29,7 @@ function createAiService(aiProviders, logger = console) {
             try {
                 const responseText = await provider.generate(promptFinal);
                 const rawJson = JSON.parse(responseText);
+
                 return validarDatosSubasta(rawJson);
             } catch (error) {
                 logger.warn(

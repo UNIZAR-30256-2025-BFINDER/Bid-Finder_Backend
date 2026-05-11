@@ -1,8 +1,13 @@
 /**
  * @fileoverview Modelo de datos para los Comentarios de las subastas.
+ * Define el esquema de Mongoose y las relaciones con Subastas y Usuarios.
  */
+
 const mongoose = require('mongoose');
 
+/**
+ * Esquema de Mongoose para la colección de comentarios.
+ */
 const comentarioSchema = new mongoose.Schema({
     subasta_id: {
         type: String, 
@@ -21,10 +26,10 @@ const comentarioSchema = new mongoose.Schema({
         maxlength: [1000, 'El comentario no puede exceder los 1000 caracteres']
     }
 }, {
-    // Crea automáticamente los campos 'createdAt' y 'updatedAt'.
     timestamps: true 
 });
 
+// Índice compuesto para optimizar la carga de comentarios de una subasta ordenados por fecha
 comentarioSchema.index({ subasta_id: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Comentario', comentarioSchema);

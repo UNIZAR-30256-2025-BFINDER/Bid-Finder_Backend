@@ -1,10 +1,19 @@
 /**
- * @fileoverview Middleware para proteger rutas privadas y validar roles.
+ * @fileoverview Middleware para proteger rutas privadas y validar roles de usuario.
+ * Utiliza JSON Web Tokens para la autenticación y Mongoose para la validación de roles.
  */
 
 const jwt = require('jsonwebtoken');
 const Usuario = require('../models/usuario');
 
+/**
+ * Verifica la validez del token JWT en la cabecera de la petición.
+ * Si es válido, inyecta el ID del usuario en `req.user` y permite continuar.
+ * @param {Object} req - Objeto de la petición HTTP de Express.
+ * @param {Object} res - Objeto de la respuesta HTTP de Express.
+ * @param {Function} next - Función para ceder el control al siguiente middleware o controlador.
+ * @returns {Promise<Object|void>} Respuesta 401 si falla, o void si tiene éxito.
+ */
 const protect = async (req, res, next) => {
     let token;
 
@@ -37,8 +46,12 @@ const protect = async (req, res, next) => {
 };
 
 /**
- * Middleware para restringir el acceso solo a administradores.
- * Debe ejecutarse siempre después de `protect`.
+ * Restringe el acceso exclusivamente a usuarios con rol de administrador.
+ * IMPORTANTE: Debe ejecutarse siempre en la cadena de middleware DESPUÉS de `protect`.
+ * @param {Object} req - Objeto de la petición HTTP (debe contener req.user inyectado).
+ * @param {Object} res - Objeto de la respuesta HTTP.
+ * @param {Function} next - Función para ceder el control al siguiente middleware.
+ * @returns {Promise<Object|void>} Respuesta 403/500 si falla, o void si tiene éxito.
  */
 const isAdmin = async (req, res, next) => {
     try {

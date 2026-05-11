@@ -1,3 +1,9 @@
+/**
+ * @fileoverview Punto de entrada principal y configuración de la aplicación Express.
+ * Orquesta los middlewares, la documentación Swagger, el enrutador
+ * principal y la gestión global de errores.
+ */
+
 var createError = require("http-errors");
 var express = require("express");
 var cookieParser = require("cookie-parser");
@@ -9,13 +15,16 @@ var swaggerUi = require("swagger-ui-express");
 var swaggerJsDoc = require("swagger-jsdoc");
 
 var indexRouter = require("./app_server/routes/index");
-
 var connectDB = require("./app_server/config/database");
 
+// Conecta a MongoDB solo si el entorno no es un test runner automatizado
 if (process.env.NODE_ENV !== "test") {
-    connectDB(); // solo conecta en entorno que no sea test
+    connectDB(); 
 }
 
+/**
+ * Dominios autorizados para realizar peticiones a esta API (CORS).
+ */
 const dominiosPermitidos = [
     'http://localhost:5173', 
     'https://tu-proyecto-frontend.vercel.app' 
@@ -23,14 +32,19 @@ const dominiosPermitidos = [
 
 var app = express();
 
+// Logger HTTP usando Morgan, redirigido a Winston
 app.use(logger('dev', {
     stream: {
         write: (message) => winstonLogger.info(message.trim())
     }
 }));
+
+// Middlewares estándar de parseo
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+// Configuración de seguridad CORS
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin || dominiosPermitidos.indexOf(origin) !== -1) {
@@ -42,6 +56,9 @@ app.use(cors({
     credentials: true 
 }));
 
+/**
+ * Configuración de la documentación interactiva Swagger/OpenAPI.
+ */
 const swaggerOptions = {
     swaggerDefinition: {
         openapi: "3.0.0",
@@ -73,15 +90,15 @@ const swaggerOptions = {
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-// Rutas de la API
+// Inyección de rutas de la API en el prefijo /api/v1
 app.use("/api/v1", indexRouter);
 
-// catch 404 and forward to error handler
+//  Captura peticiones a rutas inexistentes y delega al manejador de errores
 app.use(function (req, res, next) {
     next(createError(404, "Endpoint no encontrado"));
 });
 
-// error handler (Devuelve JSON en lugar de renderizar HTML)
+// Manejador global de errores 
 // eslint-disable-next-line no-unused-vars
 app.use(function (err, req, res, next) {
     winstonLogger.error(`[Unhandled Error] ${err.message}`, { stack: err.stack, path: req.path });
@@ -91,7 +108,7 @@ app.use(function (err, req, res, next) {
         error: {
             message: err.message,
             status: err.status || 500,
-            // Solo mostramos el stack en desarrollo por seguridad
+            // Solo muestra la traza completa (stack) si estamos en entorno de desarrollo por seguridad
             stack: req.app.get("env") === "development" ? err.stack : undefined,
         },
     });

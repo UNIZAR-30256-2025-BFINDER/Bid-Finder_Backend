@@ -1,5 +1,22 @@
+/**
+ * @fileoverview Controlador para la gestión de comentarios en el foro de subastas.
+ * Maneja la creación y obtención de comentarios asociados a un activo.
+ */
+
+/**
+ * Crea el controlador de comentarios inyectando sus dependencias.
+ * @param {Object} comentariosService - Servicio con la lógica de base de datos de comentarios.
+ * @param {Object} logger - Sistema de logs de la aplicación.
+ * @returns {Object} Métodos del controlador (crearComentario, obtenerComentarios).
+ */
 function createComentariosController(comentariosService, logger) {
     
+    /**
+     * Crea un nuevo comentario vinculado a una subasta específica.
+     * @param {Object} req - Objeto de petición de Express (requiere req.user y req.params.id).
+     * @param {Object} res - Objeto de respuesta de Express.
+     * @returns {Promise<Object>} Respuesta JSON con el comentario creado o el error.
+     */
     async function crearComentario(req, res) {
         try {
             const { id: subasta_id } = req.params;
@@ -24,6 +41,12 @@ function createComentariosController(comentariosService, logger) {
         }
     }
 
+    /**
+     * Recupera todos los comentarios asociados a una subasta.
+     * @param {Object} req - Objeto de petición de Express (requiere req.params.id).
+     * @param {Object} res - Objeto de respuesta de Express.
+     * @returns {Promise<Object>} Respuesta JSON con el listado de comentarios.
+     */
     async function obtenerComentarios(req, res) {
         try {
             const { id: subasta_id } = req.params;

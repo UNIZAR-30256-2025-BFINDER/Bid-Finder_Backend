@@ -1,17 +1,22 @@
 /**
- * @fileoverview Servicio encargado de las comunicaciones HTTP con la API del BOE.
- * Permitie la Inyección de Dependencias.
+ * @fileoverview Servicio encargado de las comunicaciones HTTP con la API de datos abiertos del BOE.
+ * Descarga los sumarios diarios y el XML completo de cada anuncio publicado.
  */
 
 /**
  * Crea una instancia del servicio HTTP del BOE.
- * @param {Object} httpClient - Cliente HTTP configurado (ej. Axios).
- * @param {Object} config - Objeto con las constantes de configuración (URLs, timeouts).
- * @param {Object} logger - Utilidad de registro de logs (ej. Winston).
- * @returns {Object} Objeto con los métodos fetchSumario y fetchXMLContent.
+ * @param {Object} httpClient - Cliente HTTP inyectado.
+ * @param {Object} config - Objeto de configuración con las rutas base del BOE.
+ * @param {Object} logger - Utilidad de registro de logs.
+ * @returns {Object} Servicio con los métodos `fetchSumario` y `fetchXMLContent`.
  */
 function createBoeService(httpClient, config, logger) {
     
+    /**
+     * Formatea un objeto Date al formato YYYYMMDD esperado por la API del BOE.
+     * @param {Date} date - Fecha a formatear.
+     * @returns {string} Fecha como cadena de texto.
+     */
     function formatDateForBOE(date) {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -19,6 +24,12 @@ function createBoeService(httpClient, config, logger) {
         return `${year}${month}${day}`;
     }
 
+    /**
+     * Descarga el sumario completo de publicaciones del BOE para una fecha determinada.
+     * @param {Date} date - Fecha de consulta.
+     * @returns {Promise<string>} Contenido XML bruto del sumario.
+     * @throws {Error} Si el BOE devuelve 404 (sin publicación) o hay problemas de red.
+     */
     async function fetchSumario(date) {
         const dateStr = formatDateForBOE(date);
         const url = `${config.API_SUMARIO_URL}/${dateStr}`;
@@ -44,6 +55,11 @@ function createBoeService(httpClient, config, logger) {
         }
     }
 
+    /**
+     * Descarga el documento XML íntegro de un anuncio específico.
+     * @param {string} xmlUrl - URL completa del documento XML en los servidores del estado.
+     * @returns {Promise<string>} Contenido del anuncio en formato XML.
+     */
     async function fetchXMLContent(xmlUrl) {
         const response = await httpClient.get(xmlUrl, {
             responseType: 'text'
@@ -51,10 +67,7 @@ function createBoeService(httpClient, config, logger) {
         return response.data;
     }
 
-    return {
-        fetchSumario,
-        fetchXMLContent
-    };
+    return { fetchSumario, fetchXMLContent };
 }
 
 module.exports = createBoeService;

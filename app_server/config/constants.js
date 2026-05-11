@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Constantes de configuración global de la aplicación.
+ * Define los parámetros de conexión al BOE, límites de ingesta y estados de la IA.
+ */
+
 module.exports = {
     BOE: {
         API_SUMARIO_URL: 'https://www.boe.es/datosabiertos/api/boe/sumario',

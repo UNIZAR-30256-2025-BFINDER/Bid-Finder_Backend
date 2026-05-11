@@ -1,20 +1,29 @@
 /**
- * @fileoverview Servicio encargado de la gestión de estadísticas.
- * Contiene la lógica de negocio para obtener estadísticas de subastas por categoría y provincia. 
- * Incluye manejo de errores y logging para facilitar la depuración.
+ * @fileoverview Servicio encargado de la agregación y gestión de estadísticas.
+ * Actúa como puente entre los controladores del panel de administración y el repositorio,
+ * aislando la lógica de negocio y facilitando la escalabilidad.
  */
 
-
-function CreateStatsService(subastasRepository) {
+/**
+ * Crea una instancia del servicio de estadísticas.
+ * @param {Object} subastasRepository - Repositorio de subastas inyectado.
+ * @returns {Object} Interfaz del servicio con métodos de agregación.
+ */
+function createStatsService(subastasRepository) {
+  
   /**
-   * Devuelve el conteo de subastas agrupadas por categoría
+   * Obtiene el conteo total de subastas agrupadas por su categoría principal.
+   * Solo contabiliza aquellas procesadas con éxito por la IA.
+   * @returns {Promise<Array<{categoria: string, total: number}>>}
    */
   async function obtenerStatsCategorias() {
     return await subastasRepository.aggregateByCategoria();
   }
 
   /**
-   * Devuelve el conteo de subastas agrupadas por provincia (zona)
+   * Obtiene el conteo total de subastas agrupadas por provincia/zona.
+   * Solo contabiliza aquellas procesadas con éxito por la IA y con geocodificación.
+   * @returns {Promise<Array<{provincia: string, total: number}>>}
    */
   async function obtenerStatsProvincias() {
     return await subastasRepository.aggregateByProvincia();
@@ -26,4 +35,4 @@ function CreateStatsService(subastasRepository) {
   };
 }
 
-module.exports = CreateStatsService;
+module.exports = createStatsService;

@@ -1,5 +1,22 @@
+/**
+ * @fileoverview Controlador para la gestión de favoritos de los usuarios.
+ * Permite añadir, eliminar y listar las subastas guardadas.
+ */
+
+/**
+ * Crea el controlador de favoritos inyectando sus dependencias.
+ * @param {Object} favoritosService - Servicio de base de datos para los favoritos.
+ * @param {Object} logger - Sistema de logs.
+ * @returns {Object} Métodos del controlador (addFavorite, removeFavorite, listFavorites).
+ */
 function createFavoritosController(favoritosService, logger) {
     
+    /**
+     * Añade una subasta a la lista de favoritos del usuario autenticado.
+     * @param {Object} req - Objeto de petición de Express (requiere req.user y req.params.subastaId).
+     * @param {Object} res - Objeto de respuesta de Express.
+     * @returns {Promise<Object>} Respuesta JSON con el estado de la operación.
+     */
     async function addFavorite(req, res) {
         try {
             const { subastaId } = req.params;
@@ -23,6 +40,12 @@ function createFavoritosController(favoritosService, logger) {
         }
     }
 
+    /**
+     * Elimina una subasta de la lista de favoritos del usuario autenticado.
+     * @param {Object} req - Objeto de petición de Express (requiere req.user y req.params.subastaId).
+     * @param {Object} res - Objeto de respuesta de Express.
+     * @returns {Promise<Object>} Respuesta JSON con el estado de la operación.
+     */
     async function removeFavorite(req, res) {
         try {
             const { subastaId } = req.params;
@@ -46,6 +69,12 @@ function createFavoritosController(favoritosService, logger) {
         }
     }
 
+    /**
+     * Obtiene la lista completa de subastas favoritas del usuario.
+     * @param {Object} req - Objeto de petición de Express (requiere req.user).
+     * @param {Object} res - Objeto de respuesta de Express.
+     * @returns {Promise<Object>} Respuesta JSON con el array de favoritos.
+     */
     async function listFavorites(req, res) {
         try {
             const userId = req.user.id;

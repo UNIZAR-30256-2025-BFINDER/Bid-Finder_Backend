@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Configuración global del sistema de registro de eventos.
+ * Utiliza Winston para unificar la salida por consola (y futuros archivos/servicios de log).
+ */
+
 const winston = require('winston');
 
 const logger = winston.createLogger({
@@ -9,7 +14,7 @@ const logger = winston.createLogger({
         })
     ),
     transports: [
-        // En desarrollo o servidores básicos, imprimimos por consola
+        // En desarrollo o servidores básicos, imprimimos directamente por consola
         new winston.transports.Console()
     ]
 });
