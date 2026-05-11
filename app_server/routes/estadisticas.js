@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Definición de rutas protegidas para estadísticas.
+ * Utilizadas por el panel de administración para renderizar las gráficas.
+ */
+
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/authMiddleware');
@@ -53,6 +58,7 @@ const statsController = createStatsController(statsService, logger);
  * 500:
  * description: Error interno del servidor
  */
+router.get('/categorias', protect, isAdmin, statsController.getStatsSubastasPorCategoria);
 
 /**
  * @swagger
@@ -88,8 +94,6 @@ const statsController = createStatsController(statsService, logger);
  * 500:
  * description: Error interno del servidor
  */
-
-router.get('/categorias', protect, isAdmin, statsController.getStatsSubastasPorCategoria);
 router.get('/provincias', protect, isAdmin, statsController.getStatsSubastasPorProvincia);
 
 module.exports = router;
