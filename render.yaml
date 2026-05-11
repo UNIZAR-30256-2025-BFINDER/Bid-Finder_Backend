@@ -1,3 +1,4 @@
+# render.yaml
 services:
   - type: web
     name: bidfinder-backend
@@ -13,21 +14,6 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GROQ_API_KEY
-        sync: false
-
-  - type: cron
-    name: bidfinder-boe-pipeline
-    env: node
-    branch: main
-    schedule: "0 8 * * *" # Se ejecuta a las 08:00 AM (Hora UTC)
-    buildCommand: npm install
-    startCommand: node app_server/jobs/dailyPipeline.js
-    envVars:
-      - key: MONGODB_URI
         sync: false
       - key: GEMINI_API_KEY
         sync: false
