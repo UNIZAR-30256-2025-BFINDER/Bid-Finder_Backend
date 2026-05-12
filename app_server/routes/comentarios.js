@@ -3,18 +3,21 @@
  * Utiliza `mergeParams: true` para poder acceder al parámetro `:id` definido en la ruta padre (subastas.js).
  */
 
-const express = require('express');
+const express = require("express");
 const router = express.Router({ mergeParams: true });
-const { protect } = require('../middlewares/authMiddleware');
-const logger = require('../utils/logger');
+const { protect } = require("../middlewares/authMiddleware");
+const logger = require("../utils/logger");
 
-const createComentariosRepository = require('../repositories/comentariosRepository');
-const createComentariosService = require('../services/comentariosService');
-const createComentariosController = require('../controllers/comentariosController');
+const createComentariosRepository = require("../repositories/comentariosRepository");
+const createComentariosService = require("../services/comentariosService");
+const createComentariosController = require("../controllers/comentariosController");
 
 const comentariosRepository = createComentariosRepository();
 const comentariosService = createComentariosService(comentariosRepository);
-const comentariosController = createComentariosController(comentariosService, logger);
+const comentariosController = createComentariosController(
+    comentariosService,
+    logger,
+);
 
 /**
  * @swagger
@@ -113,7 +116,12 @@ const comentariosController = createComentariosController(comentariosService, lo
  * 500:
  * description: Error interno del servidor
  */
-router.get('/', comentariosController.obtenerComentarios);
-router.post('/', protect, comentariosController.crearComentario);
+router.get("/", comentariosController.obtenerComentarios);
+router.post("/", protect, comentariosController.crearComentario);
+router.delete(
+    "/:comentarioId",
+    protect,
+    comentariosController.eliminarComentario,
+);
 
 module.exports = router;

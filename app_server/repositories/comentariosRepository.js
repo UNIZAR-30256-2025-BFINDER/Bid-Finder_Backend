@@ -3,14 +3,13 @@
  * Encapsula las operaciones de lectura y escritura en MongoDB mediante Mongoose.
  */
 
-const Comentario = require('../models/comentario');
+const Comentario = require("../models/comentario");
 
 /**
  * Crea una instancia del repositorio de comentarios.
  * @returns {Object} Métodos de acceso a datos (save, findBySubastaId).
  */
 function createComentariosRepository() {
-    
     /**
      * Guarda un nuevo comentario en la base de datos y adjunta los datos del usuario.
      * @param {Object} comentarioData - Objeto con los datos del comentario (subasta_id, usuario_id, texto).
@@ -19,7 +18,7 @@ function createComentariosRepository() {
     async function save(comentarioData) {
         const comentario = new Comentario(comentarioData);
         await comentario.save();
-        return await comentario.populate('usuario_id', 'nombre');
+        return await comentario.populate("usuario_id", "nombre");
     }
 
     /**
@@ -29,11 +28,19 @@ function createComentariosRepository() {
      */
     async function findBySubastaId(subasta_id) {
         return await Comentario.find({ subasta_id })
-            .populate('usuario_id', 'nombre')
-            .sort({ createdAt: -1 }); 
+            .populate("usuario_id", "nombre")
+            .sort({ createdAt: -1 });
     }
 
-    return { save, findBySubastaId };
+    async function findById(comentarioId) {
+        return await Comentario.findById(comentarioId);
+    }
+
+    async function deleteById(comentarioId) {
+        return await Comentario.findByIdAndDelete(comentarioId);
+    }
+
+    return { save, findBySubastaId, findById, deleteById };
 }
 
 module.exports = createComentariosRepository;
