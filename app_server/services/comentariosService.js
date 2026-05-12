@@ -43,18 +43,17 @@ function createComentariosService(comentariosRepository) {
      * @param {string} comentarioId - ID del comentario a eliminar.
      * @returns {Promise<Array>} Lista de comentarios ordenados temporalmente.
      */
-    async function eliminarComentario(comentarioId, userId, userRole) {
-        // Validaciones adicionales (opcional): comprobar que el comentario existe
+    async function eliminarComentario(comentarioId, userRole) {
         const comentario = await comentariosRepository.findById(comentarioId);
+        
         if (!comentario) {
             throw new Error("Comentario no encontrado");
         }
-        const esAdmin = userRole === "admin";
-        const esAutor = comentario.usuario_id.toString() === userId;
-        if (!esAdmin && !esAutor) {
-            throw new Error("No autorizado para eliminar este comentario");
+        
+        if (userRole !== "admin") {
+            throw new Error("No autorizado para eliminar este comentario. Se requiere privilegios de administrador.");
         }
-        // Llamada al repositorio
+        
         return await comentariosRepository.deleteById(comentarioId);
     }
 

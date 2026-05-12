@@ -6,7 +6,9 @@ const createComentariosService = require('../../app_server/services/comentariosS
 
 const mockRepository = {
     save: jest.fn(),
-    findBySubastaId: jest.fn()
+    findBySubastaId: jest.fn(),
+    findById: jest.fn(), 
+    deleteById: jest.fn()
 };
 
 const service = createComentariosService(mockRepository);
@@ -66,5 +68,39 @@ describe('comentariosService — obtenerComentariosPorSubasta', () => {
 
         expect(mockRepository.findBySubastaId).toHaveBeenCalledWith('BOE-123');
         expect(result).toEqual(fakeLista);
+    });
+});
+
+describe('comentariosService — eliminarComentario', () => {
+    
+    it('debería eliminar el comentario llamando al repositorio si es admin y existe', async () => {
+        mockRepository.findById.mockResolvedValue({ _id: 'com-1', texto: 'test' });
+        mockRepository.deleteById.mockResolvedValue({ _id: 'com-1' });
+
+        const result = await service.eliminarComentario('com-1', 'admin');
+
+        expect(mockRepository.findById).toHaveBeenCalledWith('com-1');
+        expect(mockRepository.deleteById).toHaveBeenCalledWith('com-1');
+        expect(result).toEqual({ _id: 'com-1' });
+    });
+
+    it('debería lanzar un error si el comentario no se encuentra en base de datos', async () => {
+        mockRepository.findById.mockResolvedValue(null);
+
+        await expect(service.eliminarComentario('com-999', 'admin'))
+            .rejects
+            .toThrow('Comentario no encontrado');
+        
+        expect(mockRepository.deleteById).not.toHaveBeenCalled();
+    });
+
+    it('debería lanzar un error si el rol del usuario no es admin', async () => {
+        mockRepository.findById.mockResolvedValue({ _id: 'com-1', texto: 'test' });
+
+        await expect(service.eliminarComentario('com-1', 'usuario'))
+            .rejects
+            .toThrow('No autorizado para eliminar este comentario');
+        
+        expect(mockRepository.deleteById).not.toHaveBeenCalled();
     });
 });

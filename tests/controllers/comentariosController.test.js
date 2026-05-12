@@ -14,6 +14,7 @@ function mockRes() {
 const mockService = {
     crearComentario: jest.fn(),
     obtenerComentariosPorSubasta: jest.fn(),
+    eliminarComentario: jest.fn(),
 };
 
 const mockLogger = {
@@ -82,5 +83,60 @@ describe('comentariosController — obtenerComentarios', () => {
             status: 'success',
             data: lista
         });
+    });
+});
+
+describe('comentariosController — eliminarComentario', () => {
+    it('responde 200 y elimina el comentario si todo es correcto', async () => {
+        const req = {
+            params: { comentarioId: 'com-1' },
+            user: { rol: 'admin' }
+        };
+        const res = mockRes();
+        
+        mockService.eliminarComentario.mockResolvedValue({ _id: 'com-1' });
+
+        await controller.eliminarComentario(req, res);
+
+        expect(mockService.eliminarComentario).toHaveBeenCalledWith('com-1', 'admin');
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            status: 'success',
+            message: 'Comentario eliminado permanentemente',
+            data: { _id: 'com-1' }
+        });
+    });
+
+    it('responde 403 si el servicio indica falta de permisos (no es admin)', async () => {
+        const req = {
+            params: { comentarioId: 'com-1' },
+            user: { rol: 'usuario' }
+        };
+        const res = mockRes();
+        
+        mockService.eliminarComentario.mockRejectedValue(new Error('No autorizado para eliminar este comentario. Se requiere privilegios de administrador.'));
+
+        await controller.eliminarComentario(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(mockLogger.error).toHaveBeenCalled();
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            error: expect.objectContaining({ status: 403 })
+        }));
+    });
+
+    it('responde 404 si el comentario no existe', async () => {
+        const req = {
+            params: { comentarioId: 'com-999' },
+            user: { rol: 'admin' }
+        };
+        const res = mockRes();
+        
+        mockService.eliminarComentario.mockRejectedValue(new Error('Comentario no encontrado'));
+
+        await controller.eliminarComentario(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(mockLogger.error).toHaveBeenCalled();
     });
 });

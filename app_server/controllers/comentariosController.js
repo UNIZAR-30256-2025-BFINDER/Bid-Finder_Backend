@@ -3,8 +3,6 @@
  * Maneja la creación y obtención de comentarios asociados a un activo.
  */
 
-const Usuario = require("../models/usuario");
-
 /**
  * Crea el controlador de comentarios inyectando sus dependencias.
  * @param {Object} comentariosService - Servicio con la lógica de base de datos de comentarios.
@@ -80,36 +78,23 @@ function createComentariosController(comentariosService, logger) {
             });
         }
     }
+    
+    /**
+     * Elimina un comentario específico de una subasta (restringido a administradores).
+     * @param {Object} req - Objeto de petición de Express (requiere req.user y req.params.comentarioId).
+     * @param {Object} res - Objeto de respuesta de Express.
+     * @returns {Promise<Object>} Respuesta JSON confirmando la eliminación o devolviendo un error.
+     */
     async function eliminarComentario(req, res) {
         try {
             const { comentarioId } = req.params;
-            const userId = req.user.id;
-            const usuario = await Usuario.findById(req.user.id);
+            
+            const userRole = req.user.rol;
 
-            if (!usuario) {
-                return res.status(404).json({
-                    error: {
-                        message: "Usuario no encontrado",
-                        status: 404,
-                    },
-                });
-            }
-            const userRole = usuario.rol;
-
-            const result = await comentariosService.eliminarComentario(
+            await comentariosService.eliminarComentario(
                 comentarioId,
-                userId,
-                userRole,
+                userRole
             );
-
-            if (!result) {
-                return res.status(404).json({
-                    error: {
-                        message: "Comentario no encontrado",
-                        status: 404,
-                    },
-                });
-            }
 
             return res.status(200).json({
                 status: "success",
@@ -117,16 +102,17 @@ function createComentariosController(comentariosService, logger) {
                 data: { _id: comentarioId },
             });
         } catch (error) {
-            const statusCode =
-                error.message === "No autorizado para eliminar este comentario"
-                    ? 403
-                    : 500;
             logger.error(
-                `[Comentarios Controller] Error al eliminar comentario: ${error.message}`,
+                `[Comentarios Controller] Error al eliminar comentario: ${error.message}`
             );
+            
+            let statusCode = 500;
+            if (error.message.includes("No autorizado")) statusCode = 403;
+            if (error.message.includes("no encontrado")) statusCode = 404;
+
             return res.status(statusCode).json({
                 error: {
-                    message: error.message || "Error interno",
+                    message: error.message || "Error interno al eliminar el comentario",
                     status: statusCode,
                 },
             });
