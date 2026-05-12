@@ -155,7 +155,7 @@ router.post("/", protect, comentariosController.crearComentario);
 router.delete(
     "/:comentarioId",
     protect,
-    comentariosController.eliminarComentario
+    comentariosController.eliminarComentario,
 );
 
 module.exports = router;

@@ -3,6 +3,8 @@
  * Maneja la creación y obtención de comentarios asociados a un activo.
  */
 
+const Usuario = require("../models/usuario");
+
 /**
  * Crea el controlador de comentarios inyectando sus dependencias.
  * @param {Object} comentariosService - Servicio con la lógica de base de datos de comentarios.
@@ -78,7 +80,7 @@ function createComentariosController(comentariosService, logger) {
             });
         }
     }
-    
+
     /**
      * Elimina un comentario específico de una subasta (restringido a administradores).
      * @param {Object} req - Objeto de petición de Express (requiere req.user y req.params.comentarioId).
@@ -88,12 +90,23 @@ function createComentariosController(comentariosService, logger) {
     async function eliminarComentario(req, res) {
         try {
             const { comentarioId } = req.params;
-            
-            const userRole = req.user.rol;
+            const userId = req.user.id;
+
+            const usuario = await Usuario.findById(userId).select("rol");
+            if (!usuario) {
+                return res.status(404).json({
+                    error: {
+                        message: "Usuario no encontrado",
+                        status: 404,
+                    },
+                });
+            }
+            const userRole = usuario.rol;
 
             await comentariosService.eliminarComentario(
                 comentarioId,
-                userRole
+                userId,
+                userRole,
             );
 
             return res.status(200).json({
@@ -103,16 +116,18 @@ function createComentariosController(comentariosService, logger) {
             });
         } catch (error) {
             logger.error(
-                `[Comentarios Controller] Error al eliminar comentario: ${error.message}`
+                `[Comentarios Controller] Error al eliminar comentario: ${error.message}`,
             );
-            
+
             let statusCode = 500;
             if (error.message.includes("No autorizado")) statusCode = 403;
             if (error.message.includes("no encontrado")) statusCode = 404;
 
             return res.status(statusCode).json({
                 error: {
-                    message: error.message || "Error interno al eliminar el comentario",
+                    message:
+                        error.message ||
+                        "Error interno al eliminar el comentario",
                     status: statusCode,
                 },
             });
