@@ -3,11 +3,6 @@
  */
 
 const createComentariosController = require("../../app_server/controllers/comentariosController");
-const Usuario = require("../../app_server/models/usuario");
-
-jest.mock("../../app_server/models/usuario", () => ({
-    findById: jest.fn(),
-}));
 
 function mockRes() {
     const res = {};
@@ -39,7 +34,7 @@ describe("comentariosController — crearComentario", () => {
         const req = {
             params: { id: "BOE-123" },
             body: { texto: "Buen piso" },
-            user: { id: "user-123" },
+            user: { id: "user-123", rol: "usuario" },
         };
         const res = mockRes();
 
@@ -66,7 +61,7 @@ describe("comentariosController — crearComentario", () => {
         const req = {
             params: { id: "BOE-123" },
             body: { texto: "" },
-            user: { id: "user-123" },
+            user: { id: "user-123", rol: "usuario" },
         };
         const res = mockRes();
 
@@ -106,13 +101,9 @@ describe("comentariosController — eliminarComentario", () => {
     it("responde 200 y elimina el comentario si todo es correcto", async () => {
         const req = {
             params: { comentarioId: "com-1" },
-            user: { id: "admin-id" },
+            user: { id: "admin-id", rol: "admin" }, 
         };
         const res = mockRes();
-
-        Usuario.findById.mockReturnValue({
-            select: jest.fn().mockResolvedValue({ rol: "admin" }),
-        });
 
         mockService.eliminarComentario.mockResolvedValue({ _id: "com-1" });
 
@@ -131,16 +122,12 @@ describe("comentariosController — eliminarComentario", () => {
         });
     });
 
-    it("responde 403 si el servicio indica falta de permisos (no es admin)", async () => {
+    it("responde 403 si el servicio indica falta de permisos", async () => {
         const req = {
             params: { comentarioId: "com-1" },
-            user: { id: "usuario-id" },
+            user: { id: "usuario-id", rol: "usuario" },
         };
         const res = mockRes();
-
-        Usuario.findById.mockReturnValue({
-            select: jest.fn().mockResolvedValue({ rol: "usuario" }),
-        });
 
         mockService.eliminarComentario.mockRejectedValue(
             new Error(
@@ -162,7 +149,7 @@ describe("comentariosController — eliminarComentario", () => {
     it("responde 404 si el comentario no existe", async () => {
         const req = {
             params: { comentarioId: "com-999" },
-            user: { rol: "admin" },
+            user: { id: "admin-id", rol: "admin" },
         };
         const res = mockRes();
 

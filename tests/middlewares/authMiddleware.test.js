@@ -1,13 +1,10 @@
 const { isAdmin } = require('../../app_server/middlewares/authMiddleware');
-const Usuario = require('../../app_server/models/usuario');
-
-jest.mock('../../app_server/models/usuario');
 
 describe('Middleware isAdmin', () => {
     let req, res, next;
 
     beforeEach(() => {
-        req = { user: { id: 'user123' } };
+        req = { user: { id: 'user123', rol: '' } };
         res = {
             status: jest.fn().mockReturnThis(),
             json: jest.fn().mockReturnThis()
@@ -17,7 +14,7 @@ describe('Middleware isAdmin', () => {
     });
 
     it('debería llamar a next() si el usuario es administrador', async () => {
-        Usuario.findById.mockResolvedValue({ _id: 'user123', rol: 'admin' });
+        req.user.rol = 'admin';
 
         await isAdmin(req, res, next);
 
@@ -26,7 +23,7 @@ describe('Middleware isAdmin', () => {
     });
 
     it('debería responder 403 si el usuario no es administrador', async () => {
-        Usuario.findById.mockResolvedValue({ _id: 'user123', rol: 'user' });
+        req.user.rol = 'user';
 
         await isAdmin(req, res, next);
 
@@ -37,8 +34,8 @@ describe('Middleware isAdmin', () => {
         }));
     });
 
-    it('debería responder 403 si el usuario no existe', async () => {
-        Usuario.findById.mockResolvedValue(null);
+    it('debería responder 403 si el rol no está definido en el token', async () => {
+        req.user.rol = undefined;
 
         await isAdmin(req, res, next);
 

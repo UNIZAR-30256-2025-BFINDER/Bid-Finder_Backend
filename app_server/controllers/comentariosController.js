@@ -3,8 +3,6 @@
  * Maneja la creación y obtención de comentarios asociados a un activo.
  */
 
-const Usuario = require("../models/usuario");
-
 /**
  * Crea el controlador de comentarios inyectando sus dependencias.
  * @param {Object} comentariosService - Servicio con la lógica de base de datos de comentarios.
@@ -87,26 +85,16 @@ function createComentariosController(comentariosService, logger) {
      * @param {Object} res - Objeto de respuesta de Express.
      * @returns {Promise<Object>} Respuesta JSON confirmando la eliminación o devolviendo un error.
      */
-    async function eliminarComentario(req, res) {
+   async function eliminarComentario(req, res) {
         try {
             const { comentarioId } = req.params;
             const userId = req.user.id;
-
-            const usuario = await Usuario.findById(userId).select("rol");
-            if (!usuario) {
-                return res.status(404).json({
-                    error: {
-                        message: "Usuario no encontrado",
-                        status: 404,
-                    },
-                });
-            }
-            const userRole = usuario.rol;
+            const userRole = req.user.rol;
 
             await comentariosService.eliminarComentario(
                 comentarioId,
                 userId,
-                userRole,
+                userRole
             );
 
             return res.status(200).json({
@@ -125,9 +113,7 @@ function createComentariosController(comentariosService, logger) {
 
             return res.status(statusCode).json({
                 error: {
-                    message:
-                        error.message ||
-                        "Error interno al eliminar el comentario",
+                    message: error.message || "Error interno al eliminar el comentario",
                     status: statusCode,
                 },
             });

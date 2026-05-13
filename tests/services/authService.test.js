@@ -41,6 +41,11 @@ describe('Auth Service', () => {
                 nombre: 'Test', email: 'test@test.com', password: '123'
             });
 
+            expect(jwt.sign).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'user123', rol: 'user' }), 
+                expect.any(String), 
+                expect.any(Object)
+            );
             expect(Usuario.create).toHaveBeenCalled();
             expect(mockUsuario.save).toHaveBeenCalled();
             expect(mockUsuario.refreshToken).toBe('refresh123');
@@ -80,7 +85,7 @@ describe('Auth Service', () => {
                 _id: 'user123',
                 nombre: 'Test',
                 email: 'test@test.com',
-                rol: 'user',
+                rol: 'admin',
                 matchPassword: jest.fn().mockResolvedValue(true),
                 save: jest.fn().mockResolvedValue(true)
             };
@@ -91,6 +96,11 @@ describe('Auth Service', () => {
 
             const result = await authService.loginUsuario('test@test.com', '123');
 
+            expect(jwt.sign).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'user123', rol: 'admin' }), 
+                expect.any(String), 
+                expect.any(Object)
+            );
             expect(mockUsuario.save).toHaveBeenCalled();
             expect(result.accessToken).toBe('access_token');
             expect(result.email).toBe('test@test.com');
@@ -127,6 +137,7 @@ describe('Auth Service', () => {
             
             const mockUsuario = {
                 _id: 'user123',
+                rol: 'user',
                 refreshToken: 'valid_old_token',
                 save: jest.fn().mockResolvedValue(true)
             };
@@ -138,6 +149,11 @@ describe('Auth Service', () => {
 
             const result = await authService.renovarToken('valid_old_token');
 
+            expect(jwt.sign).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'user123', rol: 'user' }), 
+                expect.any(String), 
+                expect.any(Object)
+            );
             expect(mockUsuario.save).toHaveBeenCalled();
             expect(mockUsuario.refreshToken).toBe('new_refresh');
             expect(result).toEqual({ accessToken: 'new_access', refreshToken: 'new_refresh' });

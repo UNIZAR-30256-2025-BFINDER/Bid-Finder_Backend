@@ -9,13 +9,14 @@ const jwt = require('jsonwebtoken');
 /**
  * Función auxiliar para generar un par de tokens (Access y Refresh).
  * @param {string} id - El ID interno del usuario en la base de datos.
+ * @param {string} rol - El rol del usuario (ej. 'admin', 'user').
  * @returns {{accessToken: string, refreshToken: string}} Objeto con ambos tokens firmados.
  */
-const generarTokens = (id) => {
-    const accessToken = jwt.sign({ id }, process.env.JWT_SECRET, {
+const generarTokens = (id, rol) => {
+    const accessToken = jwt.sign({ id, rol }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRES_IN || '1h',
     });
-    const refreshToken = jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, {
+    const refreshToken = jwt.sign({ id, rol }, process.env.JWT_REFRESH_SECRET, {
         expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
     });
     return { accessToken, refreshToken };
@@ -43,7 +44,7 @@ async function registrarUsuario(datosUsuario) {
         password,
     });
 
-    const tokens = generarTokens(usuario._id);
+    const tokens = generarTokens(usuario._id, usuario.rol);
     usuario.refreshToken = tokens.refreshToken;
     await usuario.save(); 
 
@@ -81,7 +82,7 @@ async function loginUsuario(email, password) {
         throw error;
     }
 
-    const tokens = generarTokens(usuario._id);
+    const tokens = generarTokens(usuario._id, usuario.rol);
     usuario.refreshToken = tokens.refreshToken;
     await usuario.save(); 
 
@@ -112,7 +113,7 @@ async function renovarToken(refreshTokenViejo) {
             throw new Error('Refresh token inválido o revocado');
         }
 
-        const tokens = generarTokens(usuario._id);
+        const tokens = generarTokens(usuario._id, usuario.rol);
         
         usuario.refreshToken = tokens.refreshToken;
         await usuario.save();

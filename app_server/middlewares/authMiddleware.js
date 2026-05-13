@@ -1,14 +1,13 @@
 /**
  * @fileoverview Middleware para proteger rutas privadas y validar roles de usuario.
- * Utiliza JSON Web Tokens para la autenticación y Mongoose para la validación de roles.
+ * Utiliza JSON Web Tokens para la autenticación.
  */
 
 const jwt = require('jsonwebtoken');
-const Usuario = require('../models/usuario');
 
 /**
  * Verifica la validez del token JWT en la cabecera de la petición.
- * Si es válido, inyecta el ID del usuario en `req.user` y permite continuar.
+ * Si es válido, inyecta el ID y el ROL del usuario en `req.user` y permite continuar.
  * @param {Object} req - Objeto de la petición HTTP de Express.
  * @param {Object} res - Objeto de la respuesta HTTP de Express.
  * @param {Function} next - Función para ceder el control al siguiente middleware o controlador.
@@ -30,7 +29,10 @@ const protect = async (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = { id: decoded.id };
+        req.user = { 
+            id: decoded.id,
+            rol: decoded.rol
+        }; 
         next();
     } catch (error) {
         let mensaje = 'Token inválido o corrupto.';
@@ -55,9 +57,7 @@ const protect = async (req, res, next) => {
  */
 const isAdmin = async (req, res, next) => {
     try {
-        const usuario = await Usuario.findById(req.user.id);
-
-        if (!usuario || usuario.rol !== 'admin') {
+        if (!req.user || req.user.rol !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Acceso denegado. Se requieren privilegios de administrador.'
