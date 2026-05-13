@@ -39,6 +39,21 @@ function createComentariosService(comentariosRepository) {
     }
 
     /**
+     * Recupera todos los comentarios de la plataforma con paginación (para administración).
+     * @param {number} page - Página actual solicitada.
+     * @param {number} limit - Cantidad de elementos por página.
+     * @returns {Promise<Object>} Objeto con la lista global paginada y el total.
+     */
+    async function obtenerTodosLosComentarios(page = 1, limit = 10) {
+        const pageNumber = Math.max(1, page);
+        const limitNumber = Math.max(1, limit);
+        
+        const skip = (pageNumber - 1) * limitNumber;
+        
+        return await comentariosRepository.findAll(skip, limitNumber);
+    }
+
+    /**
      * Elimina el comentario proporcionado.
      * @param {string} comentarioId - ID del comentario a eliminar.
      * @returns {Promise<Array>} Lista de comentarios ordenados temporalmente.
@@ -65,6 +80,7 @@ function createComentariosService(comentariosRepository) {
     return {
         crearComentario,
         obtenerComentariosPorSubasta,
+        obtenerTodosLosComentarios,
         eliminarComentario,
     };
 }

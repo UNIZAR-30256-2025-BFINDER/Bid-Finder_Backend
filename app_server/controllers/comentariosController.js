@@ -80,6 +80,40 @@ function createComentariosController(comentariosService, logger) {
     }
 
     /**
+     * Recupera todos los comentarios de la plataforma de forma paginada.
+     */
+    async function obtenerTodos(req, res) {
+        try {
+            const page = parseInt(req.query.page, 10) || 1;
+            const limit = parseInt(req.query.limit, 10) || 10;
+
+            const resultado = await comentariosService.obtenerTodosLosComentarios(page, limit);
+
+            return res.status(200).json({
+                status: "success",
+                data: resultado.comentarios,
+                pagination: {
+                    totalItems: resultado.total,
+                    currentPage: page,
+                    totalPages: Math.ceil(resultado.total / limit),
+                    itemsPerPage: limit
+                }
+            });
+        } catch (error) {
+            logger.error(
+                `[Comentarios Controller] Error al obtener todos los comentarios: ${error.message}`,
+                { stack: error.stack },
+            );
+            return res.status(500).json({
+                error: {
+                    message: "Error interno al recuperar los comentarios globales",
+                    status: 500,
+                },
+            });
+        }
+    }
+
+    /**
      * Elimina un comentario específico de una subasta (restringido a administradores).
      * @param {Object} req - Objeto de petición de Express (requiere req.user y req.params.comentarioId).
      * @param {Object} res - Objeto de respuesta de Express.
@@ -120,7 +154,7 @@ function createComentariosController(comentariosService, logger) {
         }
     }
 
-    return { crearComentario, obtenerComentarios, eliminarComentario };
+    return { crearComentario, obtenerComentarios, obtenerTodos, eliminarComentario };
 }
 
 module.exports = createComentariosController;

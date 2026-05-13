@@ -64,4 +64,21 @@ describe("Comentarios Repository", () => {
         expect(results[1].texto).toBe("Comentario viejo");
         expect(results[0].usuario_id.nombre).toBe("Usuario Test");
     });
+
+    it("debe buscar todos los comentarios de forma paginada y devolver el total", async () => {
+        await Comentario.create([
+            { subasta_id: "B1", usuario_id: mockUser._id, texto: "1", createdAt: new Date('2026-01-01') },
+            { subasta_id: "B2", usuario_id: mockUser._id, texto: "2", createdAt: new Date('2026-01-02') },
+            { subasta_id: "B3", usuario_id: mockUser._id, texto: "3", createdAt: new Date('2026-01-03') },
+            { subasta_id: "B4", usuario_id: mockUser._id, texto: "4", createdAt: new Date('2026-01-04') }
+        ]);
+
+        const result = await comentariosRepository.findAll(1, 2);
+
+        expect(result.total).toBe(4);
+        expect(result.comentarios.length).toBe(2);
+        expect(result.comentarios[0].texto).toBe("3");
+        expect(result.comentarios[1].texto).toBe("2");
+        expect(result.comentarios[0].usuario_id.nombre).toBe("Usuario Test");
+    });
 });

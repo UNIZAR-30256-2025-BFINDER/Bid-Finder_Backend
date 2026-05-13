@@ -1,6 +1,6 @@
 /**
  * @fileoverview Definición de rutas para el panel de administración.
- * Expone endpoints protegidos para la monitorización de la salud y métricas del sistema.
+ * Expone endpoints protegidos para la monitorización de la salud, métricas del sistema y moderación.
  */
 
 const express = require('express');
@@ -12,9 +12,17 @@ const createSubastasRepository = require('../repositories/subastasRepository');
 const createSystemService = require('../services/systemService');
 const createSystemController = require('../controllers/systemController');
 
+const createComentariosRepository = require('../repositories/comentariosRepository');
+const createComentariosService = require('../services/comentariosService');
+const createComentariosController = require('../controllers/comentariosController');
+
 const subastasRepository = createSubastasRepository();
 const systemService = createSystemService(subastasRepository);
 const systemController = createSystemController(systemService, logger);
+
+const comentariosRepository = createComentariosRepository();
+const comentariosService = createComentariosService(comentariosRepository);
+const adminComentariosController = createComentariosController(comentariosService, logger);
 
 /**
  * @swagger
@@ -42,5 +50,25 @@ const systemController = createSystemController(systemService, logger);
  *         description: Error interno del servidor
  */
 router.get('/status', protect, isAdmin, systemController.getEstadoSistema);
+
+/**
+ * @swagger
+ * /admin/comentarios:
+ *   get:
+ *     summary: Obtiene todos los comentarios de la plataforma para moderación
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista global de comentarios obtenida exitosamente
+ *       401:
+ *         description: No autorizado
+ *       403:
+ *         description: Prohibido (El usuario no tiene rol de admin)
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.get('/comentarios', protect, isAdmin, adminComentariosController.obtenerTodos);
 
 module.exports = router;

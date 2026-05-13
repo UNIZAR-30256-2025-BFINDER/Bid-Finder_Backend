@@ -14,6 +14,7 @@ function mockRes() {
 const mockService = {
     crearComentario: jest.fn(),
     obtenerComentariosPorSubasta: jest.fn(),
+    obtenerTodosLosComentarios: jest.fn(),
     eliminarComentario: jest.fn(),
 };
 
@@ -94,6 +95,46 @@ describe("comentariosController — obtenerComentarios", () => {
             status: "success",
             data: lista,
         });
+    });
+});
+
+describe("comentariosController — obtenerTodos", () => {
+    it("responde 200 y devuelve la lista paginada junto a metadatos", async () => {
+        const req = { query: { page: "2", limit: "5" } };
+        const res = mockRes();
+        
+        const resultadoService = {
+            comentarios: [{ texto: "Admin view" }],
+            total: 12
+        };
+
+        mockService.obtenerTodosLosComentarios.mockResolvedValue(resultadoService);
+
+        await controller.obtenerTodos(req, res);
+
+        expect(mockService.obtenerTodosLosComentarios).toHaveBeenCalledWith(2, 5);
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            status: "success",
+            data: resultadoService.comentarios,
+            pagination: {
+                totalItems: 12,
+                currentPage: 2,
+                totalPages: 3, 
+                itemsPerPage: 5
+            }
+        });
+    });
+
+    it("usa valores por defecto (page=1, limit=10) si no se envían query params", async () => {
+        const req = { query: {} };
+        const res = mockRes();
+        
+        mockService.obtenerTodosLosComentarios.mockResolvedValue({ comentarios: [], total: 0 });
+
+        await controller.obtenerTodos(req, res);
+
+        expect(mockService.obtenerTodosLosComentarios).toHaveBeenCalledWith(1, 10);
     });
 });
 

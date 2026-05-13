@@ -7,6 +7,7 @@ const createComentariosService = require("../../app_server/services/comentariosS
 const mockRepository = {
     save: jest.fn(),
     findBySubastaId: jest.fn(),
+    findAll: jest.fn(),
     findById: jest.fn(),
     deleteById: jest.fn(),
 };
@@ -73,6 +74,27 @@ describe("comentariosService — obtenerComentariosPorSubasta", () => {
 
         expect(mockRepository.findBySubastaId).toHaveBeenCalledWith("BOE-123");
         expect(result).toEqual(fakeLista);
+    });
+});
+
+describe("comentariosService — obtenerTodosLosComentarios", () => {
+    it("debería calcular el skip correctamente en base a la página y límite", async () => {
+        const fakeData = { comentarios: [{ texto: "Hola" }], total: 100 };
+        mockRepository.findAll.mockResolvedValue(fakeData);
+
+        const result = await service.obtenerTodosLosComentarios(3, 10);
+
+        expect(mockRepository.findAll).toHaveBeenCalledWith(20, 10);
+        expect(result).toEqual(fakeData);
+    });
+
+    it("debería usar valores por defecto para page (1) y limit (10) si no se proveen", async () => {
+        const fakeData = { comentarios: [], total: 0 };
+        mockRepository.findAll.mockResolvedValue(fakeData);
+
+        await service.obtenerTodosLosComentarios();
+
+        expect(mockRepository.findAll).toHaveBeenCalledWith(0, 10);
     });
 });
 

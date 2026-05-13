@@ -32,6 +32,25 @@ function createComentariosRepository() {
             .sort({ createdAt: -1 });
     }
 
+    /**
+     * Recupera los comentarios de la plataforma con paginación.
+     * @param {number} skip - Número de documentos a omitir.
+     * @param {number} limit - Número máximo de documentos a devolver.
+     * @returns {Promise<Object>} Objeto con los comentarios y el total de documentos.
+     */
+    async function findAll(skip = 0, limit = 10) {
+        const [comentarios, total] = await Promise.all([
+            Comentario.find({})
+                .populate("usuario_id", "nombre")
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            Comentario.countDocuments({})
+        ]);
+        
+        return { comentarios, total };
+    }
+
     async function findById(comentarioId) {
         return await Comentario.findById(comentarioId);
     }
@@ -40,7 +59,7 @@ function createComentariosRepository() {
         return await Comentario.findByIdAndDelete(comentarioId);
     }
 
-    return { save, findBySubastaId, findById, deleteById };
+    return { save, findBySubastaId, findAll, findById, deleteById };
 }
 
 module.exports = createComentariosRepository;
