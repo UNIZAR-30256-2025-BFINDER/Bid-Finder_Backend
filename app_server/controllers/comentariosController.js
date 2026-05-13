@@ -86,8 +86,14 @@ function createComentariosController(comentariosService, logger) {
         try {
             const page = parseInt(req.query.page, 10) || 1;
             const limit = parseInt(req.query.limit, 10) || 10;
+            const search = req.query.search || "";
 
-            const resultado = await comentariosService.obtenerTodosLosComentarios(page, limit);
+            const resultado =
+                await comentariosService.obtenerTodosLosComentarios(
+                    page,
+                    limit,
+                    search,
+                );
 
             return res.status(200).json({
                 status: "success",
@@ -96,8 +102,8 @@ function createComentariosController(comentariosService, logger) {
                     totalItems: resultado.total,
                     currentPage: page,
                     totalPages: Math.ceil(resultado.total / limit),
-                    itemsPerPage: limit
-                }
+                    itemsPerPage: limit,
+                },
             });
         } catch (error) {
             logger.error(
@@ -106,7 +112,8 @@ function createComentariosController(comentariosService, logger) {
             );
             return res.status(500).json({
                 error: {
-                    message: "Error interno al recuperar los comentarios globales",
+                    message:
+                        "Error interno al recuperar los comentarios globales",
                     status: 500,
                 },
             });
@@ -119,7 +126,7 @@ function createComentariosController(comentariosService, logger) {
      * @param {Object} res - Objeto de respuesta de Express.
      * @returns {Promise<Object>} Respuesta JSON confirmando la eliminación o devolviendo un error.
      */
-   async function eliminarComentario(req, res) {
+    async function eliminarComentario(req, res) {
         try {
             const { comentarioId } = req.params;
             const userId = req.user.id;
@@ -128,7 +135,7 @@ function createComentariosController(comentariosService, logger) {
             await comentariosService.eliminarComentario(
                 comentarioId,
                 userId,
-                userRole
+                userRole,
             );
 
             return res.status(200).json({
@@ -147,14 +154,21 @@ function createComentariosController(comentariosService, logger) {
 
             return res.status(statusCode).json({
                 error: {
-                    message: error.message || "Error interno al eliminar el comentario",
+                    message:
+                        error.message ||
+                        "Error interno al eliminar el comentario",
                     status: statusCode,
                 },
             });
         }
     }
 
-    return { crearComentario, obtenerComentarios, obtenerTodos, eliminarComentario };
+    return {
+        crearComentario,
+        obtenerComentarios,
+        obtenerTodos,
+        eliminarComentario,
+    };
 }
 
 module.exports = createComentariosController;

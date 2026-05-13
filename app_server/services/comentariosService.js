@@ -42,20 +42,27 @@ function createComentariosService(comentariosRepository) {
      * Recupera todos los comentarios de la plataforma con paginación (para administración).
      * @param {number} page - Página actual solicitada.
      * @param {number} limit - Cantidad de elementos por página.
+     * @param {string} search - Cadena que filtra los elementos a devolver.
      * @returns {Promise<Object>} Objeto con la lista global paginada y el total.
      */
-    async function obtenerTodosLosComentarios(page = 1, limit = 10) {
+    async function obtenerTodosLosComentarios(
+        page = 1,
+        limit = 10,
+        search = "",
+    ) {
         const pageNumber = Math.max(1, page);
         const limitNumber = Math.max(1, limit);
-        
+
         const skip = (pageNumber - 1) * limitNumber;
-        
-        return await comentariosRepository.findAll(skip, limitNumber);
+
+        return await comentariosRepository.findAll(skip, limitNumber, search);
     }
 
     /**
      * Elimina el comentario proporcionado.
      * @param {string} comentarioId - ID del comentario a eliminar.
+     * @param {string} userId - ID del usuario que quiere eliminar el comentario.
+     * @param {string} userRole - Rol del usuario que quiere eliminar el comentario.
      * @returns {Promise<Array>} Lista de comentarios ordenados temporalmente.
      */
     async function eliminarComentario(comentarioId, userId, userRole) {

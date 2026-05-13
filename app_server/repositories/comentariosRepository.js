@@ -36,19 +36,85 @@ function createComentariosRepository() {
      * Recupera los comentarios de la plataforma con paginación.
      * @param {number} skip - Número de documentos a omitir.
      * @param {number} limit - Número máximo de documentos a devolver.
+     * @param {string} search - Cadena de caracteres que filtra los documentos a devolver.
      * @returns {Promise<Object>} Objeto con los comentarios y el total de documentos.
      */
-    async function findAll(skip = 0, limit = 10) {
-        const [comentarios, total] = await Promise.all([
-            Comentario.find({})
-                .populate("usuario_id", "nombre")
-                .sort({ createdAt: -1 })
-                .skip(skip)
-                .limit(limit),
-            Comentario.countDocuments({})
+    async function findAll(skip = 0, limit = 10, search = "") {
+        // Pipeline base: siempre hacemos lookup para obtener el usuario
+        const pipeline = [
+            {
+                $lookup: {
+                    from: "usuarios", // nombre de la colección de usuarios en MongoDB
+                    localField: "usuario_id",
+                    foreignField: "_id",
+                    as: "usuario",
+                },
+            },
+            { $unwind: { path: "$usuario", preserveNullAndEmptyArrays: true } },
+        ];
+
+        // Si hay término de búsqueda, añadimos el match correspondiente
+        if (search) {
+            pipeline.push({
+                $match: {
+                    $or: [
+                        { texto: { $regex: search, $options: "i" } },
+                        { "usuario.nombre": { $regex: search, $options: "i" } },
+                    ],
+                },
+            });
+        }
+
+        // Orden, paginación
+        pipeline.push(
+            { $sort: { createdAt: -1 } },
+            { $skip: skip },
+            { $limit: limit },
+        );
+
+        // Pipeline para contar el total (con el mismo filtro)
+        const countPipeline = [
+            {
+                $lookup: {
+                    from: "usuarios",
+                    localField: "usuario_id",
+                    foreignField: "_id",
+                    as: "usuario",
+                },
+            },
+            { $unwind: { path: "$usuario", preserveNullAndEmptyArrays: true } },
+        ];
+
+        if (search) {
+            countPipeline.push({
+                $match: {
+                    $or: [
+                        { texto: { $regex: search, $options: "i" } },
+                        { "usuario.nombre": { $regex: search, $options: "i" } },
+                    ],
+                },
+            });
+        }
+        countPipeline.push({ $count: "total" });
+
+        const [comentarios, totalResult] = await Promise.all([
+            Comentario.aggregate(pipeline),
+            Comentario.aggregate(countPipeline),
         ]);
-        
-        return { comentarios, total };
+
+        // Transformar para mantener la misma estructura que con populate
+        const comentariosConPopulate = comentarios.map((c) => {
+            const { usuario, ...rest } = c;
+            return {
+                ...rest,
+                usuario_id: usuario
+                    ? { _id: usuario._id, nombre: usuario.nombre }
+                    : null,
+            };
+        });
+
+        const total = totalResult[0]?.total || 0;
+        return { comentarios: comentariosConPopulate, total };
     }
 
     async function findById(comentarioId) {

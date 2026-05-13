@@ -13,6 +13,7 @@ function createUsuariosService(usuariosRepository) {
      * Recupera todos los usuarios de la plataforma con paginación (para administración).
      * @param {number} page - Página actual solicitada.
      * @param {number} limit - Cantidad de elementos por página.
+     * @param {string} search - Cadena que filtra los elementos a devolver.
      * @returns {Promise<Object>} Objeto con la lista global paginada y el total.
      */
     async function obtenerTodosLosUsuarios(page = 1, limit = 10, search = "") {

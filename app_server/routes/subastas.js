@@ -3,16 +3,16 @@
  * Enruta las peticiones anidadas de comentarios delegándolas al `comentariosRouter`.
  */
 
-var express = require('express');
+var express = require("express");
 var router = express.Router();
 
-const comentariosRouter = require('./comentarios');
+const comentariosRouter = require("./comentarios");
 
-const createSubastasRepository = require('../repositories/subastasRepository');
-const createSubastasService = require('../services/subastasService');
-const createSubastasController = require('../controllers/subastasController');
+const createSubastasRepository = require("../repositories/subastasRepository");
+const createSubastasService = require("../services/subastasService");
+const createSubastasController = require("../controllers/subastasController");
 
-const logger = require('../utils/logger');
+const logger = require("../utils/logger");
 
 const subastasRepository = createSubastasRepository();
 const subastasService = createSubastasService(subastasRepository);
@@ -107,7 +107,7 @@ const subastasController = createSubastasController(subastasService, logger);
  *       500:
  *         description: Error interno del servidor
  */
-router.get('/', subastasController.getAllSubastas);
+router.get("/", subastasController.getAllSubastas);
 
 /**
  * @swagger
@@ -134,9 +134,9 @@ router.get('/', subastasController.getAllSubastas);
  *       500:
  *         description: Error interno del servidor
  */
-router.get('/:id', subastasController.getSubastaById);
+router.get("/:id", subastasController.getSubastaById);
 
 // Delegar las rutas anidadas al router de comentarios
-router.use('/:id/comentarios', comentariosRouter);
+router.use("/:id/comentarios", comentariosRouter);
 
 module.exports = router;

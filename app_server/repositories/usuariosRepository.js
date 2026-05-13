@@ -54,6 +54,7 @@ function createUsuariosRepository() {
      * Recupera los usuarios de la plataforma con paginación.
      * @param {number} skip - Número de documentos a omitir.
      * @param {number} limit - Número máximo de documentos a devolver.
+     * @param {string} search - Cadena de caracteres que filtra los documentos a devolver.
      * @returns {Promise<Object>} Objeto con los usuarios y el total de usuarios.
      */
     async function findAll(skip = 0, limit = 10, search = "") {
