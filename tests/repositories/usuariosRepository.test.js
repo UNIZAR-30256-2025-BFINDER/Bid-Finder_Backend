@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const createUsuariosRepository = require("../../app_server/repositories/usuariosRepository");
 const Usuario = require("../../app_server/models/usuario");
 const Subasta = require("../../app_server/models/subasta");
+const Comentario = require("../../app_server/models/comentario");
 
 let mongoServer;
 let repository;
@@ -24,62 +25,262 @@ afterEach(async () => {
     await Subasta.deleteMany({});
 });
 
-describe("Usuarios Repository", () => {
+describe("Usuarios Repository - Favoritos", () => {
     let mockUser;
     let mockSubasta;
 
     beforeEach(async () => {
-        // Usamos insertMany para la subasta para evitar posibles validaciones estrictas extras 
-        // (como hicimos antes en el otro repositorio), pero para el usuario usamos create 
+        // Usamos insertMany para la subasta para evitar posibles validaciones estrictas extras
+        // (como hicimos antes en el otro repositorio), pero para el usuario usamos create
         // asegurándonos de cumplir todas las reglas del Schema.
-        
-        const subastas = await Subasta.collection.insertMany([{
-            id: "BOE-TEST-1",
-            titulo: "Subasta Test",
-            precio_salida: 100,
-            rawXml: "<x/>",
-            texto: "texto",
-            fechaPublicacion: "20260101",
-            urlPdf: "/x"
-        }]);
-        
+
+        const subastas = await Subasta.collection.insertMany([
+            {
+                id: "BOE-TEST-1",
+                titulo: "Subasta Test",
+                precio_salida: 100,
+                rawXml: "<x/>",
+                texto: "texto",
+                fechaPublicacion: "20260101",
+                urlPdf: "/x",
+            },
+        ]);
+
         mockSubasta = { _id: subastas.insertedIds["0"] };
 
         mockUser = await Usuario.create({
             nombre: "Test",
             email: "test@test.com",
-            password: "password123", 
-            favoritos: []
+            password: "password123",
+            favoritos: [],
         });
     });
 
     it("debe añadir un favorito y devolver el usuario poblado", async () => {
-        const result = await repository.addFavorito(mockUser._id, mockSubasta._id);
-        
+        const result = await repository.addFavorito(
+            mockUser._id,
+            mockSubasta._id,
+        );
+
         expect(result.favoritos).toHaveLength(1);
-        expect(result.favoritos[0].id).toBe("BOE-TEST-1"); 
+        expect(result.favoritos[0].id).toBe("BOE-TEST-1");
     });
 
     it("no debe añadir duplicados ($addToSet)", async () => {
         await repository.addFavorito(mockUser._id, mockSubasta._id);
-        const result = await repository.addFavorito(mockUser._id, mockSubasta._id);
-        
+        const result = await repository.addFavorito(
+            mockUser._id,
+            mockSubasta._id,
+        );
+
         expect(result.favoritos).toHaveLength(1);
     });
 
     it("debe eliminar un favorito ($pull)", async () => {
         await repository.addFavorito(mockUser._id, mockSubasta._id);
-        const result = await repository.removeFavorito(mockUser._id, mockSubasta._id);
-        
+        const result = await repository.removeFavorito(
+            mockUser._id,
+            mockSubasta._id,
+        );
+
         expect(result.favoritos).toHaveLength(0);
     });
 
     it("debe obtener los favoritos poblados", async () => {
         await repository.addFavorito(mockUser._id, mockSubasta._id);
-        
+
         const result = await repository.getFavoritos(mockUser._id);
-        
+
         expect(result.favoritos).toHaveLength(1);
         expect(result.favoritos[0].titulo).toBe("Subasta Test");
+    });
+});
+
+describe("Usuarios Repository - findAll", () => {
+    let usuario1, usuario2, usuario3, admin1;
+
+    beforeEach(async () => {
+        // Crear usuarios con diferentes datos
+        usuario1 = await Usuario.create({
+            nombre: "Ana López",
+            email: "ana@test.com",
+            password: "password",
+            rol: "user",
+        });
+        usuario2 = await Usuario.create({
+            nombre: "Carlos Ruiz",
+            email: "carlos@test.com",
+            password: "password",
+            rol: "user",
+        });
+        usuario3 = await Usuario.create({
+            nombre: "María Pérez",
+            email: "maria@test.com",
+            password: "password",
+            rol: "user",
+        });
+        admin1 = await Usuario.create({
+            nombre: "Admin User",
+            email: "admin@test.com",
+            password: "password",
+            rol: "admin",
+        });
+
+        // Crear comentarios para probar numComentarios
+        await Comentario.create([
+            {
+                subasta_id: "S1",
+                usuario_id: usuario1._id,
+                texto: "Comentario 1",
+            },
+            {
+                subasta_id: "S2",
+                usuario_id: usuario1._id,
+                texto: "Comentario 2",
+            },
+            {
+                subasta_id: "S3",
+                usuario_id: usuario2._id,
+                texto: "Comentario de Carlos",
+            },
+        ]);
+
+        // Crear subastas para favoritos
+        const subastaIds = await Subasta.collection.insertMany([
+            {
+                id: "FAV1",
+                titulo: "Favorita 1",
+                precio_salida: 10,
+                rawXml: "<x/>",
+                texto: "t",
+                fechaPublicacion: "20260101",
+                urlPdf: "/x",
+            },
+            {
+                id: "FAV2",
+                titulo: "Favorita 2",
+                precio_salida: 20,
+                rawXml: "<x/>",
+                texto: "t",
+                fechaPublicacion: "20260101",
+                urlPdf: "/x",
+            },
+        ]);
+        const subastaObj1 = subastaIds.insertedIds["0"];
+        const subastaObj2 = subastaIds.insertedIds["1"];
+
+        // Añadir favoritos a usuario1, usuario3 y admin1
+        await Usuario.updateOne(
+            { _id: usuario1._id },
+            { $addToSet: { favoritos: subastaObj1 } },
+        );
+        await Usuario.updateOne(
+            { _id: usuario1._id },
+            { $addToSet: { favoritos: subastaObj2 } },
+        );
+        await Usuario.updateOne(
+            { _id: usuario3._id },
+            { $addToSet: { favoritos: subastaObj1 } },
+        );
+        await Usuario.updateOne(
+            { _id: admin1._id },
+            { $addToSet: { favoritos: subastaObj1 } },
+        );
+    });
+
+    it("devuelve usuarios paginados correctamente sin búsqueda", async () => {
+        const result1 = await repository.findAll(0, 2);
+        expect(result1.usuarios).toHaveLength(2);
+        expect(result1.total).toBe(4); // sin filtro, total de usuarios creados
+        expect(result1.totalAdmins).toBe(1); // solo admin1
+        expect(result1.globalTotal).toBe(4);
+        expect(result1.globalAdmins).toBe(1);
+
+        const result2 = await repository.findAll(2, 2);
+        expect(result2.usuarios).toHaveLength(2);
+        expect(result2.total).toBe(4);
+    });
+
+    it("ordena los usuarios por createdAt descendente", async () => {
+        const usuarioNuevo = await Usuario.create({
+            nombre: "Nuevo",
+            email: "nuevo@test.com",
+            password: "password",
+            rol: "user",
+        });
+        const result = await repository.findAll(0, 10);
+        expect(result.usuarios[0]._id.toString()).toBe(
+            usuarioNuevo._id.toString(),
+        );
+    });
+
+    it("filtra por búsqueda en nombre (case insensitive)", async () => {
+        const result = await repository.findAll(0, 10, "ana");
+        expect(result.usuarios).toHaveLength(1);
+        expect(result.usuarios[0].nombre).toBe("Ana López");
+        expect(result.total).toBe(1);
+        expect(result.totalAdmins).toBe(0);
+        expect(result.globalTotal).toBe(4);
+    });
+
+    it("filtra por búsqueda en email", async () => {
+        const result = await repository.findAll(0, 10, "carlos@test.com");
+        expect(result.usuarios).toHaveLength(1);
+        expect(result.usuarios[0].nombre).toBe("Carlos Ruiz");
+        expect(result.total).toBe(1);
+    });
+
+    it("filtra con búsqueda parcial", async () => {
+        const result = await repository.findAll(0, 10, "mar");
+        expect(result.usuarios).toHaveLength(1);
+        expect(result.usuarios[0].nombre).toBe("María Pérez");
+    });
+
+    it("filtra con búsqueda y devuelve los contadores filtrados correctos", async () => {
+        const result = await repository.findAll(0, 10, "admin");
+        expect(result.usuarios).toHaveLength(1);
+        expect(result.totalAdmins).toBe(1);
+        expect(result.total).toBe(1);
+        expect(result.globalAdmins).toBe(1);
+    });
+
+    it("incluye numFavoritos y numComentarios calculados", async () => {
+        const result = await repository.findAll(0, 10);
+        const usuario1Encontrado = result.usuarios.find(
+            (u) => u.nombre === "Ana López",
+        );
+        expect(usuario1Encontrado.numFavoritos).toBe(2);
+        expect(usuario1Encontrado.numComentarios).toBe(2);
+
+        const usuario2Encontrado = result.usuarios.find(
+            (u) => u.nombre === "Carlos Ruiz",
+        );
+        expect(usuario2Encontrado.numFavoritos).toBe(0);
+        expect(usuario2Encontrado.numComentarios).toBe(1);
+
+        const usuario3Encontrado = result.usuarios.find(
+            (u) => u.nombre === "María Pérez",
+        );
+        expect(usuario3Encontrado.numFavoritos).toBe(1);
+        expect(usuario3Encontrado.numComentarios).toBe(0);
+    });
+
+    it("no devuelve campos sensibles (password, refreshToken, __v, favoritos array)", async () => {
+        const result = await repository.findAll(0, 10);
+        const user = result.usuarios[0];
+        expect(user).not.toHaveProperty("password");
+        expect(user).not.toHaveProperty("refreshToken");
+        expect(user).not.toHaveProperty("__v");
+        expect(user).not.toHaveProperty("favoritos");
+        expect(user).toHaveProperty("numFavoritos");
+    });
+
+    it("funciona con búsqueda vacía o undefined", async () => {
+        const result1 = await repository.findAll(0, 10, "");
+        const result2 = await repository.findAll(0, 10, undefined);
+        expect(result1.usuarios.length).toBe(4);
+        expect(result2.usuarios.length).toBe(4);
+        expect(result1.total).toBe(4);
+        expect(result2.total).toBe(4);
     });
 });

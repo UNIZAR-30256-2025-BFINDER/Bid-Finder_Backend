@@ -84,7 +84,7 @@ describe("comentariosService — obtenerTodosLosComentarios", () => {
 
         const result = await service.obtenerTodosLosComentarios(3, 10);
 
-        expect(mockRepository.findAll).toHaveBeenCalledWith(20, 10);
+        expect(mockRepository.findAll).toHaveBeenCalledWith(20, 10, "");
         expect(result).toEqual(fakeData);
     });
 
@@ -94,7 +94,28 @@ describe("comentariosService — obtenerTodosLosComentarios", () => {
 
         await service.obtenerTodosLosComentarios();
 
-        expect(mockRepository.findAll).toHaveBeenCalledWith(0, 10);
+        expect(mockRepository.findAll).toHaveBeenCalledWith(0, 10, "");
+    });
+
+    it("debería pasar el término de búsqueda al repositorio cuando se proporciona", async () => {
+        const fakeData = {
+            comentarios: [{ texto: "resultado filtrado" }],
+            total: 1,
+        };
+        mockRepository.findAll.mockResolvedValue(fakeData);
+
+        const result = await service.obtenerTodosLosComentarios(
+            2,
+            5,
+            "test búsqueda",
+        );
+
+        expect(mockRepository.findAll).toHaveBeenCalledWith(
+            5,
+            5,
+            "test búsqueda",
+        );
+        expect(result).toEqual(fakeData);
     });
 });
 

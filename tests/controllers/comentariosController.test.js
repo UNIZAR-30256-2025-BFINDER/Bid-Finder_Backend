@@ -100,19 +100,25 @@ describe("comentariosController — obtenerComentarios", () => {
 
 describe("comentariosController — obtenerTodos", () => {
     it("responde 200 y devuelve la lista paginada junto a metadatos", async () => {
-        const req = { query: { page: "2", limit: "5" } };
+        const req = { query: { page: "2", limit: "5", search: "" } };
         const res = mockRes();
-        
+
         const resultadoService = {
             comentarios: [{ texto: "Admin view" }],
-            total: 12
+            total: 12,
         };
 
-        mockService.obtenerTodosLosComentarios.mockResolvedValue(resultadoService);
+        mockService.obtenerTodosLosComentarios.mockResolvedValue(
+            resultadoService,
+        );
 
         await controller.obtenerTodos(req, res);
 
-        expect(mockService.obtenerTodosLosComentarios).toHaveBeenCalledWith(2, 5);
+        expect(mockService.obtenerTodosLosComentarios).toHaveBeenCalledWith(
+            2,
+            5,
+            "",
+        );
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({
             status: "success",
@@ -120,21 +126,57 @@ describe("comentariosController — obtenerTodos", () => {
             pagination: {
                 totalItems: 12,
                 currentPage: 2,
-                totalPages: 3, 
-                itemsPerPage: 5
-            }
+                totalPages: 3,
+                itemsPerPage: 5,
+            },
         });
     });
 
-    it("usa valores por defecto (page=1, limit=10) si no se envían query params", async () => {
+    it('usa valores por defecto (page=1, limit=10, search="") si no se envían query params', async () => {
         const req = { query: {} };
         const res = mockRes();
-        
-        mockService.obtenerTodosLosComentarios.mockResolvedValue({ comentarios: [], total: 0 });
+
+        mockService.obtenerTodosLosComentarios.mockResolvedValue({
+            comentarios: [],
+            total: 0,
+        });
 
         await controller.obtenerTodos(req, res);
 
-        expect(mockService.obtenerTodosLosComentarios).toHaveBeenCalledWith(1, 10);
+        expect(mockService.obtenerTodosLosComentarios).toHaveBeenCalledWith(
+            1,
+            10,
+            "",
+        );
+    });
+
+    it("debe pasar el término de búsqueda al servicio cuando se proporciona en la query", async () => {
+        const req = { query: { page: "1", limit: "10", search: "test" } };
+        const res = mockRes();
+
+        mockService.obtenerTodosLosComentarios.mockResolvedValue({
+            comentarios: [{ texto: "Comentario con test" }],
+            total: 1,
+        });
+
+        await controller.obtenerTodos(req, res);
+
+        expect(mockService.obtenerTodosLosComentarios).toHaveBeenCalledWith(
+            1,
+            10,
+            "test", // ← validamos que el search se pasa correctamente
+        );
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            status: "success",
+            data: [{ texto: "Comentario con test" }],
+            pagination: {
+                totalItems: 1,
+                currentPage: 1,
+                totalPages: 1,
+                itemsPerPage: 10,
+            },
+        });
     });
 });
 
@@ -142,7 +184,7 @@ describe("comentariosController — eliminarComentario", () => {
     it("responde 200 y elimina el comentario si todo es correcto", async () => {
         const req = {
             params: { comentarioId: "com-1" },
-            user: { id: "admin-id", rol: "admin" }, 
+            user: { id: "admin-id", rol: "admin" },
         };
         const res = mockRes();
 
