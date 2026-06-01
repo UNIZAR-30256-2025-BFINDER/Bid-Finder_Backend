@@ -1,12 +1,14 @@
 /**
- * @fileoverview Tests unitarios para aiResponseValidator.
+ * @fileoverview Tests unitarios para aiResponseValidator (formato multi-subasta).
  */
 
 const {
     validarDatosSubasta,
+    validarLote,
 } = require("../../app_server/utils/aiResponseValidator");
 
-const camposVacios = {
+const camposVaciosLote = {
+    numero_lote: 1,
     titulo_resumido: null,
     resumen: null,
     direccion: null,
@@ -20,7 +22,7 @@ const camposVacios = {
     riesgo_legal: null,
 };
 
-describe("validarDatosSubasta", () => {
+describe("validarDatosSubasta (multi-subasta)", () => {
     it("lanza un error si el input es null", () => {
         expect(() => validarDatosSubasta(null)).toThrow(
             "La respuesta de la IA no es un objeto válido.",
@@ -39,12 +41,51 @@ describe("validarDatosSubasta", () => {
         );
     });
 
-    it("devuelve todos los campos en null si el objeto está vacío", () => {
-        expect(validarDatosSubasta({})).toEqual(camposVacios);
+    it("devuelve un array con un lote vacío si el objeto no tiene subastas", () => {
+        const result = validarDatosSubasta({});
+        expect(result.subastas).toHaveLength(1);
+        expect(result.subastas[0]).toEqual(camposVaciosLote);
     });
 
-    it("convierte precio_salida y valor_tasacion a número float", () => {
+    it("acepta formato con array de subastas", () => {
         const result = validarDatosSubasta({
+            subastas: [
+                { numero_lote: 1, titulo_resumido: "Piso en Madrid" },
+                { numero_lote: 2, titulo_resumido: "Garaje" },
+            ],
+        });
+        expect(result.subastas).toHaveLength(2);
+        expect(result.subastas[0].titulo_resumido).toBe("Piso en Madrid");
+        expect(result.subastas[1].titulo_resumido).toBe("Garaje");
+    });
+
+    it("acepta formato con array de lotes (retrocompatible)", () => {
+        const result = validarDatosSubasta({
+            lotes: [
+                { numero_lote: 1, titulo_resumido: "Piso en Madrid" },
+                { numero_lote: 2, titulo_resumido: "Garaje" },
+            ],
+        });
+        expect(result.subastas).toHaveLength(2);
+        expect(result.subastas[0].titulo_resumido).toBe("Piso en Madrid");
+        expect(result.subastas[1].titulo_resumido).toBe("Garaje");
+    });
+
+    it("fallback: envuelve formato plano antiguo en un array de 1 subasta", () => {
+        const result = validarDatosSubasta({
+            titulo_resumido: "Piso en Madrid",
+            precio_salida: 100000,
+        });
+        expect(result.subastas).toHaveLength(1);
+        expect(result.subastas[0].titulo_resumido).toBe("Piso en Madrid");
+        expect(result.subastas[0].precio_salida).toBe(100000);
+        expect(result.subastas[0].numero_lote).toBe(1);
+    });
+});
+
+describe("validarLote", () => {
+    it("convierte precio_salida y valor_tasacion a número float", () => {
+        const result = validarLote({
             precio_salida: "150000.50",
             valor_tasacion: "200000",
         });
@@ -54,17 +95,17 @@ describe("validarDatosSubasta", () => {
     });
 
     it("acepta precio_salida ya como número", () => {
-        const result = validarDatosSubasta({ precio_salida: 99000 });
+        const result = validarLote({ precio_salida: 99000 });
         expect(result.precio_salida).toBe(99000);
     });
 
     it("pone null en precio_salida si el valor no es parseable", () => {
-        const result = validarDatosSubasta({ precio_salida: "no-es-numero" });
+        const result = validarLote({ precio_salida: "no-es-numero" });
         expect(result.precio_salida).toBeNull();
     });
 
     it("preserva strings válidos en campos de texto", () => {
-        const result = validarDatosSubasta({
+        const result = validarLote({
             titulo_resumido: "Piso en Madrid",
             resumen: "Un resumen",
             direccion: "Calle Mayor 1",
@@ -78,12 +119,12 @@ describe("validarDatosSubasta", () => {
     });
 
     it("pone null en un campo de texto si el valor es un número (tipo incorrecto)", () => {
-        const result = validarDatosSubasta({ titulo_resumido: 999 });
+        const result = validarLote({ titulo_resumido: 999 });
         expect(result.titulo_resumido).toBeNull();
     });
 
     it("acepta null explícito en todos los campos", () => {
-        const result = validarDatosSubasta({
+        const result = validarLote({
             titulo_resumido: null,
             resumen: null,
             direccion: null,
@@ -92,11 +133,16 @@ describe("validarDatosSubasta", () => {
             valor_tasacion: null,
             zona: null,
         });
-        expect(result).toEqual(camposVacios);
+        expect(result).toEqual(camposVaciosLote);
     });
 
     it("acepta y normaliza una categoria válida", () => {
-        const result = validarDatosSubasta({ categoria: "inmueble" });
+        const result = validarLote({ categoria: "inmueble" });
         expect(result.categoria).toBe("INMUEBLE");
+    });
+
+    it("asigna numero_lote por defecto si no viene", () => {
+        const result = validarLote({}, 3);
+        expect(result.numero_lote).toBe(3);
     });
 });

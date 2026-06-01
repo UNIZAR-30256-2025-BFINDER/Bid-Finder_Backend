@@ -1,7 +1,7 @@
 /**
- * @fileoverview Proceso en segundo plano responsable de procesar la cola de subastas.
- * Extrae subastas 'PENDIENTES', las envía a los LLMs, ejecuta geocodificación
- * y actualiza la base de datos controlando límites de cuota.
+ * @fileoverview Proceso en segundo plano responsable de procesar la cola de anuncios de subastas.
+ * Extrae anuncios 'PENDIENTES', las envía a los LLMs para obtener un array de subastas individuales,
+ * ejecuta geocodificación por cada una y actualiza la base de datos.
  */
 
 const connectDB = require("../config/database");
@@ -10,6 +10,7 @@ const { AI_WORKER } = require("../config/constants");
 const {
     calcularDiferenciaPorcentual,
     calcularNivelOportunidad,
+    calcularViabilidad,
 } = require("../utils/oportunidadCalculator");
 
 const BATCH_SIZE = AI_WORKER.BATCH_SIZE;
@@ -22,6 +23,59 @@ const DELAY_MS = AI_WORKER.DELAY_MS;
  */
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Procesa una única subasta individual: calcula oportunidad y geocodifica la dirección.
+ * @param {Object} subastaItem - Datos de la subasta individual extraídos por la IA.
+ * @param {string} textoAnuncio - Texto completo del anuncio (para extraer municipio como fallback).
+ * @param {Object} geoCodingService - Servicio de geocodificación.
+ * @param {Object} logger - Logger.
+ * @param {string} anuncioId - ID del anuncio para logging.
+ * @returns {Promise<Object>} Subasta enriquecida con coordenadas y oportunidad.
+ */
+async function procesarSubasta(subastaItem, textoAnuncio, geoCodingService, logger, anuncioId) {
+    const diferencia_porcentual_oportunidad = calcularDiferenciaPorcentual(
+        subastaItem.precio_salida,
+        subastaItem.valor_tasacion,
+    );
+
+    const nivel_oportunidad = calcularNivelOportunidad(
+        subastaItem.precio_salida,
+        subastaItem.valor_tasacion,
+    );
+
+    const viabilidad = calcularViabilidad(
+        nivel_oportunidad,
+        subastaItem.riesgo_legal
+    );
+
+    let direccion = subastaItem.direccion || "";
+    let municipio = subastaItem.zona || "";
+
+    if (!municipio && textoAnuncio) {
+        const municipioMatch =
+            textoAnuncio.match(/en ([A-ZÁÉÍÓÚÑ][a-záéíóúñ ]+)[.,]/) ||
+            textoAnuncio.match(/([A-ZÁÉÍÓÚÑ][a-záéíóúñ ]+), \d{1,2} de /);
+
+        if (municipioMatch) {
+            municipio = municipioMatch[1].trim();
+        }
+    }
+
+    const geoResult = await geoCodingService.getCoordinatesFromAddress(direccion, municipio);
+
+    logger.info(
+        `[GeoCoding] Anuncio ${anuncioId} Lote/Subasta ${subastaItem.numero_lote} dirección: "${direccion}" municipio: "${municipio}" resultado: ${geoResult.geojson ? "OK" : "NO"} fallback: ${geoResult.fallbackUsed}`
+    );
+
+    return {
+        ...subastaItem,
+        diferencia_porcentual_oportunidad,
+        nivel_oportunidad,
+        viabilidad,
+        location: geoResult.geojson || null,
+    };
 }
 
 /**
@@ -38,73 +92,46 @@ async function runWorker(deps) {
     const pendientes = await subastasRepository.findPendingAI(BATCH_SIZE);
 
     if (pendientes.length === 0) {
-        logger.info("[AI Worker] Cola vacía. No hay subastas pendientes.");
+        logger.info("[AI Worker] Cola vacía. No hay anuncios de subastas pendientes.");
         return 0;
     }
 
-    logger.info(`[AI Worker] Se han encontrado ${pendientes.length} subastas pendientes. Procesando...`);
+    logger.info(`[AI Worker] Se han encontrado ${pendientes.length} anuncios pendientes. Procesando...`);
 
     for (let i = 0; i < pendientes.length; i++) {
-        const subasta = pendientes[i];
-        logger.info(`[AI Worker] (${i + 1}/${pendientes.length}) Analizando ${subasta.id}...`);
+        const anuncio = pendientes[i];
+        logger.info(`[AI Worker] (${i + 1}/${pendientes.length}) Analizando anuncio ${anuncio.id}...`);
 
         try {
             const datosExtraidos = await aiService.extraerDatosSubasta(
-                subasta.texto,
+                anuncio.texto,
                 SUBASTA_EXTRACTION_PROMPT,
             );
 
-            const diferencia_porcentual_oportunidad = calcularDiferenciaPorcentual(
-                datosExtraidos.precio_salida,
-                datosExtraidos.valor_tasacion,
-            );
+            // datosExtraidos tiene el formato { subastas: [...] } gracias al validador
+            const subastasRaw = datosExtraidos.subastas || [];
+            logger.info(`[AI Worker] Anuncio ${anuncio.id}: IA detectó ${subastasRaw.length} subasta(s) individuales.`);
 
-            const nivel_oportunidad = calcularNivelOportunidad(
-                datosExtraidos.precio_salida,
-                datosExtraidos.valor_tasacion,
-            );
-
-            let direccion = datosExtraidos.direccion || "";
-            let municipio = datosExtraidos.zona || ""; 
-
-            if (!municipio && subasta.texto) {
-                const municipioMatch =
-                    subasta.texto.match(/en ([A-ZÁÉÍÓÚÑ][a-záéíóúñ ]+)[.,]/) ||
-                    subasta.texto.match(/([A-ZÁÉÍÓÚÑ][a-záéíóúñ ]+), \d{1,2} de /);
-
-                if (municipioMatch) {
-                    municipio = municipioMatch[1].trim();
-                }
+            // Procesar cada subasta (geocodificar + calcular oportunidad)
+            const subastasProcesadas = [];
+            for (const subItem of subastasRaw) {
+                const subProcesada = await procesarSubasta(
+                    subItem,
+                    anuncio.texto,
+                    geoCodingService,
+                    logger,
+                    anuncio.id,
+                );
+                subastasProcesadas.push(subProcesada);
             }
 
-            const geoResult = await geoCodingService.getCoordinatesFromAddress(direccion, municipio);
-
-            logger.info(
-                `[GeoCoding] Subasta ${subasta.id} dirección: "${direccion}" municipio: "${municipio}" resultado: ${geoResult.geojson ? "OK" : "NO"} fallback: ${geoResult.fallbackUsed}`
-            );
-
             await subastasRepository.updateAIExtraction(
-                subasta.id,
-                {
-                    titulo_resumido: datosExtraidos.titulo_resumido ?? null,
-                    resumen: datosExtraidos.resumen ?? null,
-                    categoria: datosExtraidos.categoria ?? null,
-                    precio_salida: datosExtraidos.precio_salida ?? null,
-                    valor_tasacion: datosExtraidos.valor_tasacion ?? null,
-                    diferencia_porcentual_oportunidad,
-                    nivel_oportunidad,
-                    direccion: datosExtraidos.direccion ?? null,
-                    zona: datosExtraidos.zona ?? null,
-                    referencia_catastral: datosExtraidos.referencia_catastral ?? null,
-                    location: geoResult.geojson || null,
-                    riesgo_legal: datosExtraidos.riesgo_legal ?? null,
-                    ocupantes: datosExtraidos.ocupantes ?? null,
-                    cargas_previas: datosExtraidos.cargas_previas ?? null,
-                },
+                anuncio.id,
+                subastasProcesadas,
                 "PROCESADO",
             );
 
-            logger.info(`[AI Worker] ${subasta.id} actualizado correctamente.`);
+            logger.info(`[AI Worker] Anuncio ${anuncio.id} actualizado correctamente con ${subastasProcesadas.length} subasta(s).`);
 
             if (i < pendientes.length - 1) {
                 await sleep(DELAY_MS);
@@ -117,8 +144,8 @@ async function runWorker(deps) {
                 break;
             }
 
-            logger.error(`[AI Worker] Error procesando ${subasta.id}: ${errMsg}`);
-            await subastasRepository.updateAIExtraction(subasta.id, {}, "ERROR");
+            logger.error(`[AI Worker] Error procesando anuncio ${anuncio.id}: ${errMsg}`);
+            await subastasRepository.updateAIExtraction(anuncio.id, [], "ERROR");
         }
     }
 
@@ -153,4 +180,4 @@ if (require.main === module) {
         });
 }
 
-module.exports = { runWorker, isQuotaError };
+module.exports = { runWorker, isQuotaError, procesarLote: procesarSubasta };

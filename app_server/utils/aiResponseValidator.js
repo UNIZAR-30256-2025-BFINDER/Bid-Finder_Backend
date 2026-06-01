@@ -1,7 +1,7 @@
 /**
  * @fileoverview Validador de esquemas para las respuestas de la Inteligencia Artificial.
- * Garantiza que los datos tengan el tipo y formato correctos antes de guardarlos en BD,
- * actuando como un escudo contra alucinaciones del modelo.
+ * Soporta el formato multi-subasta: espera un objeto con array "subastas" (o "lotes") y valida cada una.
+ * Incluye fallback para respuestas en formato antiguo (objeto plano sin array).
  */
 
 /**
@@ -34,15 +34,14 @@ function esZonaValida(zona) {
 }
 
 /**
- * Recorre y sanea el objeto JSON devuelto por la IA asegurando tipos de datos.
- * Sustituye por `null` cualquier campo que no cumpla con su esquema predefinido.
- * @param {Object} data - Objeto JSON crudo devuelto por el LLM.
- * @returns {Object} Nuevo objeto saneado listo para ser guardado en MongoDB.
- * @throws {Error} Si la respuesta principal no es un objeto.
+ * Valida y sanea una única subasta individual devuelta por la IA.
+ * @param {Object} data - Objeto JSON de una subasta cruda devuelto por el LLM.
+ * @param {number} [defaultNumero=1] - Número de lote por defecto si no viene.
+ * @returns {Object} Subasta saneada lista para ser guardada en MongoDB.
  */
-function validarDatosSubasta(data) {
+function validarLote(data, defaultNumero = 1) {
     if (!data || typeof data !== "object") {
-        throw new Error("La respuesta de la IA no es un objeto válido.");
+        return { numero_lote: defaultNumero };
     }
 
     const CATEGORIAS = ["inmueble", "vehiculo", "maquinaria", "otros"];
@@ -57,12 +56,14 @@ function validarDatosSubasta(data) {
         precio_salida: (v) => !isNaN(parseFloat(v)) || v === null,
         valor_tasacion: (v) => !isNaN(parseFloat(v)) || v === null,
         zona: (v) => esZonaValida(v) || v === null,
-        riesgo_legal: (v) => ["Alto", "Medio", "Bajo", null].includes(v),
+        riesgo_legal: (v) => v === null || (typeof v === "string" && ["alto", "medio", "bajo"].includes(v.toLowerCase())),
         ocupantes: (v) => typeof v === "string" || v === null,
         cargas_previas: (v) => typeof v === "string" || v === null,
     };
 
-    const limpio = {};
+    const limpio = {
+        numero_lote: typeof data.numero_lote === "number" ? data.numero_lote : defaultNumero,
+    };
 
     for (const [campo, validador] of Object.entries(esquema)) {
         if (validador(data[campo])) {
@@ -71,7 +72,7 @@ function validarDatosSubasta(data) {
                     data[campo] !== null ? parseFloat(data[campo]) : null;
             } else if (campo === "zona") {
                 limpio[campo] = esZonaValida(data[campo]) ? data[campo] : null;
-            } else if (campo === "categoria") {
+            } else if (campo === "categoria" || campo === "riesgo_legal") {
                 limpio[campo] = data[campo] !== null ? data[campo].toUpperCase() : null;
             } else {
                 limpio[campo] = data[campo];
@@ -84,4 +85,30 @@ function validarDatosSubasta(data) {
     return limpio;
 }
 
-module.exports = { validarDatosSubasta };
+/**
+ * Valida la respuesta completa de la IA, esperando el formato multi-subasta.
+ * Soporta fallback: si recibe un objeto plano (formato antiguo), lo envuelve en un array.
+ * @param {Object} data - Objeto JSON crudo devuelto por el LLM.
+ * @returns {Object} Objeto con propiedad `subastas` (array de subastas validadas).
+ * @throws {Error} Si la respuesta no es un objeto válido.
+ */
+function validarDatosSubasta(data) {
+    if (!data || typeof data !== "object") {
+        throw new Error("La respuesta de la IA no es un objeto válido.");
+    }
+
+    // Formato nuevo: { subastas: [...] } o { lotes: [...] }
+    const items = data.subastas || data.lotes;
+    if (Array.isArray(items)) {
+        const subastasValidadas = items.map((item, idx) =>
+            validarLote(item, idx + 1)
+        );
+        return { subastas: subastasValidadas };
+    }
+
+    // Formato antiguo (fallback): objeto plano con los campos directamente
+    const subastaUnica = validarLote(data, 1);
+    return { subastas: [subastaUnica] };
+}
+
+module.exports = { validarDatosSubasta, validarLote, esZonaValida };

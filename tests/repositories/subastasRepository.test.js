@@ -1,7 +1,7 @@
 const { MongoMemoryServer } = require("mongodb-memory-server");
 const mongoose = require("mongoose");
 const createSubastasRepository = require("../../app_server/repositories/subastasRepository");
-const Subasta = require("../../app_server/models/subasta");
+const Anuncio = require("../../app_server/models/anuncio");
 
 let mongoServer;
 let subastasRepository;
@@ -19,33 +19,57 @@ afterAll(async () => {
 });
 
 afterEach(async () => {
-    await Subasta.deleteMany({});
+    await Anuncio.deleteMany({});
 });
 
 describe("subastasRepository - findAll con filtros", () => {
     beforeEach(async () => {
-        await Subasta.collection.insertMany([
+        await Anuncio.collection.insertMany([
             {
-                id: "BOE-FILTRO-1", estado_ia: "PROCESADO", zona: "Madrid", titulo_resumido: "Local comercial", 
+                id: "BOE-FILTRO-1", estado_ia: "PROCESADO",
                 fechaPublicacion: "20260101", titulo: "Prueba 1", urlPdf: "/1.pdf", texto: "Prueba", rawXml: "<x/>",
-                precio_salida: 100000, nivel_oportunidad: "ALTO"
+                subastas: [{
+                    numero_lote: 1,
+                    titulo_resumido: "Local comercial", 
+                    zona: "Madrid",
+                    precio_salida: 100000, 
+                    nivel_oportunidad: "ALTO",
+                    viabilidad: "ALTA",
+                    categoria: "INMUEBLE"
+                }]
             },
             {
-                id: "BOE-FILTRO-2", estado_ia: "PROCESADO", direccion: "Calle, madrid", resumen: "vehículo alta gama",
+                id: "BOE-FILTRO-2", estado_ia: "PROCESADO",
                 fechaPublicacion: "20260102", titulo: "Prueba 2", urlPdf: "/2.pdf", texto: "Prueba", rawXml: "<x/>",
-                precio_salida: 50000, nivel_oportunidad: "MEDIO"
+                subastas: [{
+                    numero_lote: 1,
+                    resumen: "vehículo alta gama",
+                    direccion: "Calle, madrid", 
+                    precio_salida: 50000, 
+                    nivel_oportunidad: "MEDIO",
+                    viabilidad: "MEDIA",
+                    categoria: "VEHICULO"
+                }]
             },
             {
-                id: "BOE-FILTRO-3", estado_ia: "PROCESADO", zona: "Valencia", texto: "Finca rústica",
-                fechaPublicacion: "20260103", titulo: "Prueba 3", urlPdf: "/3.pdf", rawXml: "<x/>",
-                precio_salida: 200000, nivel_oportunidad: "BAJO"
+                id: "BOE-FILTRO-3", estado_ia: "PROCESADO",
+                fechaPublicacion: "20260103", titulo: "Prueba 3", urlPdf: "/3.pdf", texto: "Finca rústica", rawXml: "<x/>",
+                subastas: [{
+                    numero_lote: 1,
+                    zona: "Valencia", 
+                    precio_salida: 200000, 
+                    nivel_oportunidad: "BAJO",
+                    viabilidad: "BAJA",
+                    categoria: "OTROS"
+                }]
             },
             {
-                id: "BOE-FILTRO-4", estado_ia: "PENDIENTE", zona: "Madrid", titulo: "Prueba 4", urlPdf: "/4.pdf", 
-                texto: "Prueba 4", rawXml: "<x/>", fechaPublicacion: "20260104", precio_salida: 150000
+                id: "BOE-FILTRO-4", estado_ia: "PENDIENTE", titulo: "Prueba 4", urlPdf: "/4.pdf", 
+                texto: "Prueba 4", rawXml: "<x/>", fechaPublicacion: "20260104",
+                subastas: []
             }
         ]);
-        await Subasta.ensureIndexes();
+        await Anuncio.ensureIndexes();
     });
 
     it("debe filtrar por precio mínimo y máximo", async () => {
@@ -59,21 +83,20 @@ describe("subastasRepository - findAll con filtros", () => {
         expect(resultsRango.length).toBe(1); 
     });
 
-    it("debe filtrar por nivel de oportunidad inclusivo", async () => {
+    it("debe filtrar por nivel de oportunidad exacto (mapeado a viabilidad)", async () => {
         const resultsMedio = await subastasRepository.findAll({ nivel_oportunidad: "MEDIO" });
-        expect(resultsMedio.length).toBe(2);
-        const niveles = resultsMedio.map(r => r.nivel_oportunidad);
-        expect(niveles).toContain("ALTO");
-        expect(niveles).toContain("MEDIO");
+        expect(resultsMedio.length).toBe(1);
+        expect(resultsMedio[0].viabilidad).toBe("MEDIA");
     });
 
-    it("debe encontrar una subasta por ID", async () => {
-        const subasta = await subastasRepository.findById("BOE-FILTRO-1");
+    it("debe encontrar una subasta por ID compuesto", async () => {
+        const subasta = await subastasRepository.findById("BOE-FILTRO-1__L1");
         expect(subasta).not.toBeNull();
-        expect(subasta.id).toBe("BOE-FILTRO-1");
+        expect(subasta.id).toBe("BOE-FILTRO-1__L1");
+        expect(subasta.titulo_resumido).toBe("Local comercial");
     });
     
-    it("debe encontrar subastas pendientes de IA con límite", async () => {
+    it("debe encontrar anuncios pendientes de IA con límite", async () => {
         const results = await subastasRepository.findPendingAI(5);
         expect(results.length).toBe(1);
         expect(results[0].estado_ia).toBe("PENDIENTE");
@@ -92,36 +115,45 @@ describe("subastasRepository - findAll con filtros", () => {
 
 describe("subastasRepository - Operaciones Especiales y Agregaciones", () => {
     beforeEach(async () => {
-        await Subasta.collection.insertMany([
-            { id: "BOE-AG-1", estado_ia: "PROCESADO", categoria: "Piso", zona: "Madrid", fechaPublicacion: "20260101", titulo: "A", urlPdf: "/1", texto: "txt", rawXml: "<x/>" },
-            { id: "BOE-AG-2", estado_ia: "PROCESADO", categoria: "Piso", zona: "Madrid", fechaPublicacion: "20260101", titulo: "A", urlPdf: "/1", texto: "txt", rawXml: "<x/>" },
-            { id: "BOE-AG-3", estado_ia: "PROCESADO", categoria: "Coche", zona: "Zaragoza", fechaPublicacion: "20260101", titulo: "A", urlPdf: "/1", texto: "txt", rawXml: "<x/>" }
+        await Anuncio.collection.insertMany([
+            { 
+                id: "BOE-AG-1", estado_ia: "PROCESADO", fechaPublicacion: "20260101", titulo: "A", urlPdf: "/1", texto: "txt", rawXml: "<x/>",
+                subastas: [{ numero_lote: 1, categoria: "INMUEBLE", zona: "Madrid" }]
+            },
+            { 
+                id: "BOE-AG-2", estado_ia: "PROCESADO", fechaPublicacion: "20260101", titulo: "A", urlPdf: "/1", texto: "txt", rawXml: "<x/>",
+                subastas: [{ numero_lote: 1, categoria: "INMUEBLE", zona: "Madrid" }]
+            },
+            { 
+                id: "BOE-AG-3", estado_ia: "PROCESADO", fechaPublicacion: "20260101", titulo: "A", urlPdf: "/1", texto: "txt", rawXml: "<x/>",
+                subastas: [{ numero_lote: 1, categoria: "VEHICULO", zona: "Zaragoza" }]
+            }
         ]);
     });
 
-    it("debe guardar múltiples subastas con bulkWrite (saveSubastas)", async () => {
-        const nuevasSubastas = [
+    it("debe guardar múltiples anuncios con bulkWrite (saveSubastas)", async () => {
+        const nuevosAnuncios = [
             { id: "BOE-AG-1", titulo: "Actualizado" }, 
             { id: "BOE-AG-4", titulo: "Nueva", fechaPublicacion: "2026", urlPdf: "/x", texto: "txt", rawXml: "<x/>", estado_ia: "PENDIENTE" } 
         ];
 
-        const stats = await subastasRepository.saveSubastas(nuevasSubastas);
+        const stats = await subastasRepository.saveSubastas(nuevosAnuncios);
         expect(stats.upserted).toBe(1);
         expect(stats.modified).toBe(1);
         expect(stats.matched).toBe(1);
     });
 
     it("debe actualizar datos de extracción IA", async () => {
-        const updated = await subastasRepository.updateAIExtraction("BOE-AG-3", { valor_tasacion: 5000 }, "PROCESADO");
-        expect(updated.valor_tasacion).toBe(5000);
+        const updated = await subastasRepository.updateAIExtraction("BOE-AG-3", [{ numero_lote: 1, valor_tasacion: 5000, categoria: "VEHICULO" }], "PROCESADO");
+        expect(updated.subastas[0].valor_tasacion).toBe(5000);
         expect(updated.estado_ia).toBe("PROCESADO");
     });
 
     it("debe agrupar estadísticas por categoría", async () => {
         const stats = await subastasRepository.aggregateByCategoria();
         expect(stats.length).toBe(2);
-        const pisos = stats.find(s => s.categoria === "Piso");
-        expect(pisos.total).toBe(2);
+        const inmuebles = stats.find(s => s.categoria === "INMUEBLE");
+        expect(inmuebles.total).toBe(2);
     });
 
     it("debe agrupar estadísticas por provincia", async () => {

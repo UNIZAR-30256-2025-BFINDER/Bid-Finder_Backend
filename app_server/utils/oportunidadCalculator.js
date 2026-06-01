@@ -50,7 +50,39 @@ function calcularNivelOportunidad(precioSalida, valorTasacion) {
     return 'BAJO';
 }
 
+function calcularViabilidad(nivelOportunidad, riesgoLegal) {
+    // Si el riesgo legal es ALTO, la viabilidad siempre es BAJA
+    if (riesgoLegal === 'ALTO') {
+        return 'BAJA';
+    }
+
+    // Si el nivel de oportunidad es ALTO
+    if (nivelOportunidad === 'ALTO') {
+        return 'ALTA';
+    }
+
+    // Si el nivel de oportunidad es MEDIO
+    if (nivelOportunidad === 'MEDIO') {
+        return 'ALTA'; // Oportunidad media -> Viabilidad alta si el riesgo no es alto
+    }
+
+    // Si el nivel de oportunidad es BAJO
+    if (nivelOportunidad === 'BAJO') {
+        // Si el riesgo es bajo, se considera media
+        if (riesgoLegal === 'BAJO') return 'MEDIA';
+        return 'BAJA';
+    }
+
+    // Fallback si no hay oportunidad (ej. sin tasación)
+    if (riesgoLegal === 'BAJO') return 'ALTA';
+    if (riesgoLegal === 'MEDIO') return 'MEDIA';
+
+    // Si no hay datos ni de riesgo ni de oportunidad, viabilidad MEDIA en lugar de BAJA
+    return 'MEDIA';
+}
+
 module.exports = {
     calcularDiferenciaPorcentual,
     calcularNivelOportunidad,
+    calcularViabilidad,
 };

@@ -71,13 +71,24 @@ const subastasRules = {
 
         const rawXml = typeof documento.texto === 'object' ? JSON.stringify(documento.texto) : String(documento.texto);
 
+        // Extraemos información adicional del nodo <departamento> si está presente
+        const departamentoNombre = metadatos.departamento && typeof metadatos.departamento === 'string'
+            ? metadatos.departamento.trim()
+            : (metadatos.departamento && metadatos.departamento['#text']) ? metadatos.departamento['#text'].trim() : null;
+        const departamentoCodigo = metadatos.departamento && metadatos.departamento['@_codigo']
+            ? metadatos.departamento['@_codigo']
+            : null;
+
         return {
             id: metadatos.identificador || "",
             titulo: metadatos.titulo || "Título no disponible",
             fechaPublicacion: metadatos.fecha_publicacion || "",
             urlPdf: metadatos.url_pdf || "",
             texto: textoLimpio,
-            rawXml: rawXml
+            rawXml: rawXml,
+            // nuevos campos útiles para el frontend
+            departamento: departamentoNombre,
+            departamentoCodigo: departamentoCodigo,
         };
     },
 
