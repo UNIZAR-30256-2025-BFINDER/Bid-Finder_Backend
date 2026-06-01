@@ -23,10 +23,13 @@ router.get("/", function (req, res) {
     });
 });
 
+const catastroRouter = require("./catastro");
+
 router.use("/subastas", subastasRouter);
 router.use("/admin", adminRouter);
 router.use("/favoritos", favoritosRouter);
 router.use("/estadisticas", statsRouter);
 router.use('/auth', authRoutes);
+router.use('/catastro', catastroRouter);
 
 module.exports = router;
