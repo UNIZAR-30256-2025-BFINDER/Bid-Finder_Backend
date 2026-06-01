@@ -26,7 +26,9 @@ describe("processXml (con extractAnuncioStrategy)", () => {
         fechaPublicacion: 20260328, 
         urlPdf: "/boe/dias/2026/03/28/pdfs/BOE-B-2026-999.pdf",
         texto: "Subasta de una vivienda urbana situada en la Calle Gran Vía, 1, Madrid.\nReferencia catastral: 1234567AB9999C0001DE.\nValor de tasación: 200.000 euros.\nEste es un texto válido para simular una subasta real de inmueble que no será filtrada por nuestras reglas.",
-        rawXml: expect.any(String)
+        rawXml: expect.any(String),
+        departamento: null,
+        departamentoCodigo: null
     };
 
     it("1. Debería parsear un XML VÁLIDO de inmueble y aplicar el mapper", () => {

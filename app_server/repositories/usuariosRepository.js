@@ -17,12 +17,12 @@ function createUsuariosRepository() {
      * @param {string} subastaObjectId - ID interno de Mongo de la subasta a guardar.
      * @returns {Promise<Object>} Documento de usuario actualizado y poblado con sus favoritos.
      */
-    async function addFavorito(userId, subastaObjectId) {
+    async function addFavorito(userId, loteId) {
         return await Usuario.findByIdAndUpdate(
             userId,
-            { $addToSet: { favoritos: subastaObjectId } },
+            { $addToSet: { favoritos: loteId } },
             { new: true },
-        ).populate("favoritos");
+        ).select("favoritos");
     }
 
     /**
@@ -31,12 +31,12 @@ function createUsuariosRepository() {
      * @param {string} subastaObjectId - ID interno de Mongo de la subasta a eliminar.
      * @returns {Promise<Object>} Documento de usuario actualizado y poblado con sus favoritos.
      */
-    async function removeFavorito(userId, subastaObjectId) {
+    async function removeFavorito(userId, loteId) {
         return await Usuario.findByIdAndUpdate(
             userId,
-            { $pull: { favoritos: subastaObjectId } },
+            { $pull: { favoritos: loteId } },
             { new: true },
-        ).populate("favoritos");
+        ).select("favoritos");
     }
 
     /**
@@ -46,7 +46,6 @@ function createUsuariosRepository() {
      */
     async function getFavoritos(userId) {
         return await Usuario.findById(userId)
-            .populate("favoritos")
             .select("favoritos");
     }
 

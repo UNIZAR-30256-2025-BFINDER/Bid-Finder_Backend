@@ -2,7 +2,6 @@ const { MongoMemoryServer } = require("mongodb-memory-server");
 const mongoose = require("mongoose");
 const createUsuariosRepository = require("../../app_server/repositories/usuariosRepository");
 const Usuario = require("../../app_server/models/usuario");
-const Subasta = require("../../app_server/models/subasta");
 const Comentario = require("../../app_server/models/comentario");
 
 let mongoServer;
@@ -22,31 +21,14 @@ afterAll(async () => {
 
 afterEach(async () => {
     await Usuario.deleteMany({});
-    await Subasta.deleteMany({});
 });
 
 describe("Usuarios Repository - Favoritos", () => {
     let mockUser;
-    let mockSubasta;
+    let mockLoteId;
 
     beforeEach(async () => {
-        // Usamos insertMany para la subasta para evitar posibles validaciones estrictas extras
-        // (como hicimos antes en el otro repositorio), pero para el usuario usamos create
-        // asegurándonos de cumplir todas las reglas del Schema.
-
-        const subastas = await Subasta.collection.insertMany([
-            {
-                id: "BOE-TEST-1",
-                titulo: "Subasta Test",
-                precio_salida: 100,
-                rawXml: "<x/>",
-                texto: "texto",
-                fechaPublicacion: "20260101",
-                urlPdf: "/x",
-            },
-        ]);
-
-        mockSubasta = { _id: subastas.insertedIds["0"] };
+        mockLoteId = "BOE-TEST-1__L1";
 
         mockUser = await Usuario.create({
             nombre: "Test",
@@ -56,43 +38,43 @@ describe("Usuarios Repository - Favoritos", () => {
         });
     });
 
-    it("debe añadir un favorito y devolver el usuario poblado", async () => {
+    it("debe añadir un favorito", async () => {
         const result = await repository.addFavorito(
             mockUser._id,
-            mockSubasta._id,
+            mockLoteId,
         );
 
         expect(result.favoritos).toHaveLength(1);
-        expect(result.favoritos[0].id).toBe("BOE-TEST-1");
+        expect(result.favoritos[0]).toBe("BOE-TEST-1__L1");
     });
 
     it("no debe añadir duplicados ($addToSet)", async () => {
-        await repository.addFavorito(mockUser._id, mockSubasta._id);
+        await repository.addFavorito(mockUser._id, mockLoteId);
         const result = await repository.addFavorito(
             mockUser._id,
-            mockSubasta._id,
+            mockLoteId,
         );
 
         expect(result.favoritos).toHaveLength(1);
     });
 
     it("debe eliminar un favorito ($pull)", async () => {
-        await repository.addFavorito(mockUser._id, mockSubasta._id);
+        await repository.addFavorito(mockUser._id, mockLoteId);
         const result = await repository.removeFavorito(
             mockUser._id,
-            mockSubasta._id,
+            mockLoteId,
         );
 
         expect(result.favoritos).toHaveLength(0);
     });
 
-    it("debe obtener los favoritos poblados", async () => {
-        await repository.addFavorito(mockUser._id, mockSubasta._id);
+    it("debe obtener los favoritos", async () => {
+        await repository.addFavorito(mockUser._id, mockLoteId);
 
         const result = await repository.getFavoritos(mockUser._id);
 
         expect(result.favoritos).toHaveLength(1);
-        expect(result.favoritos[0].titulo).toBe("Subasta Test");
+        expect(result.favoritos[0]).toBe("BOE-TEST-1__L1");
     });
 });
 
@@ -145,46 +127,22 @@ describe("Usuarios Repository - findAll", () => {
             },
         ]);
 
-        // Crear subastas para favoritos
-        const subastaIds = await Subasta.collection.insertMany([
-            {
-                id: "FAV1",
-                titulo: "Favorita 1",
-                precio_salida: 10,
-                rawXml: "<x/>",
-                texto: "t",
-                fechaPublicacion: "20260101",
-                urlPdf: "/x",
-            },
-            {
-                id: "FAV2",
-                titulo: "Favorita 2",
-                precio_salida: 20,
-                rawXml: "<x/>",
-                texto: "t",
-                fechaPublicacion: "20260101",
-                urlPdf: "/x",
-            },
-        ]);
-        const subastaObj1 = subastaIds.insertedIds["0"];
-        const subastaObj2 = subastaIds.insertedIds["1"];
-
-        // Añadir favoritos a usuario1, usuario3 y admin1
+        // Añadir favoritos a usuario1, usuario3 y admin1 como strings
         await Usuario.updateOne(
             { _id: usuario1._id },
-            { $addToSet: { favoritos: subastaObj1 } },
+            { $addToSet: { favoritos: "BOE-TEST-1__L1" } },
         );
         await Usuario.updateOne(
             { _id: usuario1._id },
-            { $addToSet: { favoritos: subastaObj2 } },
+            { $addToSet: { favoritos: "BOE-TEST-2__L1" } },
         );
         await Usuario.updateOne(
             { _id: usuario3._id },
-            { $addToSet: { favoritos: subastaObj1 } },
+            { $addToSet: { favoritos: "BOE-TEST-1__L1" } },
         );
         await Usuario.updateOne(
             { _id: admin1._id },
-            { $addToSet: { favoritos: subastaObj1 } },
+            { $addToSet: { favoritos: "BOE-TEST-1__L1" } },
         );
     });
 

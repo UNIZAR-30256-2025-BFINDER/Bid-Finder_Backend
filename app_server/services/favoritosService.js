@@ -1,6 +1,6 @@
 /**
  * @fileoverview Servicio para gestionar la lógica de subastas guardadas.
- * Relaciona los usuarios con la colección de subastas para asegurar integridad referencial.
+ * Trabaja con IDs compuestos de lote (ej. "BOE-B-xxx__L1") almacenados como strings.
  */
 
 /**
@@ -10,43 +10,43 @@
  * @returns {Object} Interfaz del servicio.
  */
 function createFavoritosService(usuariosRepository, subastasService) {
-    
+
     /**
-     * Vincula una subasta a la colección de favoritos del usuario si esta existe.
+     * Vincula un lote de subasta a la colección de favoritos del usuario.
      * @param {string} userId - ID del usuario solicitante.
-     * @param {string} subastaId - ID (BOE) del activo a guardar.
-     * @returns {Promise<Object>} Resumen con la subasta y el array actualizado de favoritos.
-     * @throws {Error} Si el identificador de subasta no existe en la BD.
+     * @param {string} loteId - ID compuesto del lote (ej. "BOE-B-xxx__L1").
+     * @returns {Promise<Object>} Resumen con el array actualizado de favoritos.
+     * @throws {Error} Si el lote no existe en la BD.
      */
-    async function addFavorite(userId, subastaId) {
-        const subasta = await subastasService.getSubastaById(subastaId);
+    async function addFavorite(userId, loteId) {
+        const subasta = await subastasService.getSubastaById(loteId);
         if (!subasta) {
             throw new Error("Subasta no encontrada");
         }
-        const usuario = await usuariosRepository.addFavorito(userId, subasta._id);
+        const usuario = await usuariosRepository.addFavorito(userId, loteId);
         return { subasta, favoritos: usuario.favoritos };
     }
 
     /**
-     * Desvincula una subasta de la colección de favoritos de un usuario.
+     * Desvincula un lote de subasta de la colección de favoritos de un usuario.
      * @param {string} userId - ID del usuario solicitante.
-     * @param {string} subastaId - ID (BOE) del activo a desvincular.
-     * @returns {Promise<Object>} Resumen con la subasta eliminada y el array actualizado.
-     * @throws {Error} Si el identificador de subasta no existe.
+     * @param {string} loteId - ID compuesto del lote (ej. "BOE-B-xxx__L1").
+     * @returns {Promise<Object>} Resumen con el array actualizado.
+     * @throws {Error} Si el lote no existe.
      */
-    async function removeFavorite(userId, subastaId) {
-        const subasta = await subastasService.getSubastaById(subastaId);
+    async function removeFavorite(userId, loteId) {
+        const subasta = await subastasService.getSubastaById(loteId);
         if (!subasta) {
             throw new Error("Subasta no encontrada");
         }
-        const usuario = await usuariosRepository.removeFavorito(userId, subasta._id);
+        const usuario = await usuariosRepository.removeFavorito(userId, loteId);
         return { subasta, favoritos: usuario.favoritos };
     }
 
     /**
-     * Obtiene todos los objetos 'Subasta' guardados por un usuario específico.
+     * Obtiene todos los IDs de lotes favoritos de un usuario.
      * @param {string} userId - ID del usuario.
-     * @returns {Promise<Array>} Lista de subastas favoritas.
+     * @returns {Promise<Array>} Lista de IDs compuestos de lotes favoritos.
      */
     async function getFavorites(userId) {
         const usuario = await usuariosRepository.getFavoritos(userId);

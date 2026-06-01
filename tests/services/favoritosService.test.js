@@ -23,19 +23,19 @@ describe("Favoritos Service", () => {
         it("debe lanzar error si la subasta no existe", async () => {
             mockSubastasService.getSubastaById.mockResolvedValue(null);
 
-            await expect(service.addFavorite("user1", "BOE-99")).rejects.toThrow("Subasta no encontrada");
+            await expect(service.addFavorite("user1", "BOE-99__L1")).rejects.toThrow("Subasta no encontrada");
         });
 
         it("debe llamar al repositorio si la subasta existe", async () => {
-            const fakeSubasta = { _id: "obj123", id: "BOE-99" };
-            const fakeUser = { favoritos: [fakeSubasta] };
+            const fakeSubasta = { id: "BOE-99__L1" };
+            const fakeUser = { favoritos: ["BOE-99__L1"] };
             
             mockSubastasService.getSubastaById.mockResolvedValue(fakeSubasta);
             mockUsuariosRepository.addFavorito.mockResolvedValue(fakeUser);
 
-            const result = await service.addFavorite("user1", "BOE-99");
+            const result = await service.addFavorite("user1", "BOE-99__L1");
 
-            expect(mockUsuariosRepository.addFavorito).toHaveBeenCalledWith("user1", "obj123");
+            expect(mockUsuariosRepository.addFavorito).toHaveBeenCalledWith("user1", "BOE-99__L1");
             expect(result.subasta).toBe(fakeSubasta);
             expect(result.favoritos).toBe(fakeUser.favoritos);
         });
@@ -45,30 +45,30 @@ describe("Favoritos Service", () => {
         it("debe lanzar error si la subasta no existe", async () => {
             mockSubastasService.getSubastaById.mockResolvedValue(null);
 
-            await expect(service.removeFavorite("user1", "BOE-99")).rejects.toThrow("Subasta no encontrada");
+            await expect(service.removeFavorite("user1", "BOE-99__L1")).rejects.toThrow("Subasta no encontrada");
         });
 
         it("debe llamar al repositorio para borrar si la subasta existe", async () => {
-            const fakeSubasta = { _id: "obj123" };
+            const fakeSubasta = { id: "BOE-99__L1" };
             const fakeUser = { favoritos: [] };
             
             mockSubastasService.getSubastaById.mockResolvedValue(fakeSubasta);
             mockUsuariosRepository.removeFavorito.mockResolvedValue(fakeUser);
 
-            const result = await service.removeFavorite("user1", "BOE-99");
+            const result = await service.removeFavorite("user1", "BOE-99__L1");
 
-            expect(mockUsuariosRepository.removeFavorito).toHaveBeenCalledWith("user1", "obj123");
+            expect(mockUsuariosRepository.removeFavorito).toHaveBeenCalledWith("user1", "BOE-99__L1");
             expect(result.favoritos).toEqual([]);
         });
     });
 
     describe("getFavorites", () => {
         it("debe devolver la lista de favoritos poblada", async () => {
-            mockUsuariosRepository.getFavoritos.mockResolvedValue({ favoritos: [{ id: "1" }] });
+            mockUsuariosRepository.getFavoritos.mockResolvedValue({ favoritos: ["BOE-99__L1"] });
             
             const result = await service.getFavorites("user1");
             
-            expect(result).toEqual([{ id: "1" }]);
+            expect(result).toEqual(["BOE-99__L1"]);
         });
 
         it("debe devolver un array vacío si usuario.favoritos no existe o es nulo", async () => {

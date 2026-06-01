@@ -19,7 +19,7 @@ function createSubastasController(subastasService, logger) {
      */
     async function getAllSubastas(req, res) {
         try {
-            const { provincia, categoria, precio_min, precio_max, nivel_oportunidad, q } = req.query;
+            const { provincia, categoria, precio_min, precio_max, nivel_oportunidad, q, tipo_lote } = req.query;
             
             const filtros = {};
             if (provincia) filtros.provincia = provincia;
@@ -28,6 +28,7 @@ function createSubastasController(subastasService, logger) {
             if (precio_min) filtros.precio_min = precio_min;
             if (precio_max) filtros.precio_max = precio_max;
             if (nivel_oportunidad) filtros.nivel_oportunidad = nivel_oportunidad;
+            if (tipo_lote) filtros.tipo_lote = tipo_lote;
 
             const subastas = await subastasService.getAllSubastas(filtros);
             
@@ -60,7 +61,8 @@ function createSubastasController(subastasService, logger) {
         try {
             const id = String(req.params.id);
 
-            if (!id || !id.startsWith("BOE")) {
+            const baseId = id.split("__L")[0];
+            if (!baseId || !baseId.startsWith("BOE")) {
                 return res.status(400).json({
                     error: {
                         message: "ID debe ser un identificador que comience con 'BOE'",

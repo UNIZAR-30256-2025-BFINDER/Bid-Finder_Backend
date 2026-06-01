@@ -1,5 +1,5 @@
 /**
- * @fileoverview Pruebas unitarias para el servicio de Inteligencia Artificial
+ * @fileoverview Pruebas unitarias para el servicio de Inteligencia Artificial (multi-subasta)
  */
 
 const createAiService = require("../../app_server/services/aiService");
@@ -14,7 +14,8 @@ describe("AI Service - Sistema de Fallback y Rotación", () => {
         jest.restoreAllMocks();
     });
 
-    const defaultValidados = {
+    const defaultValidadosLote = {
+        numero_lote: 1,
         titulo_resumido: null,
         resumen: null,
         categoria: null,
@@ -30,7 +31,7 @@ describe("AI Service - Sistema de Fallback y Rotación", () => {
 
     it("Debería devolver el JSON parseado y validado si el PRIMER proveedor tiene éxito", async () => {
         const provider1 = {
-            generate: jest.fn().mockResolvedValue('{"precio_salida": 150000}'),
+            generate: jest.fn().mockResolvedValue('{"subastas": [{"numero_lote": 1, "precio_salida": 150000}]}'),
         };
         const provider2 = { generate: jest.fn() };
 
@@ -41,7 +42,8 @@ describe("AI Service - Sistema de Fallback y Rotación", () => {
             "Prompt",
         );
 
-        expect(result).toEqual({ ...defaultValidados, precio_salida: 150000 });
+        expect(result.subastas).toHaveLength(1);
+        expect(result.subastas[0]).toEqual({ ...defaultValidadosLote, precio_salida: 150000 });
         expect(provider1.generate).toHaveBeenCalledTimes(1);
         expect(provider2.generate).not.toHaveBeenCalled();
     });
@@ -50,7 +52,7 @@ describe("AI Service - Sistema de Fallback y Rotación", () => {
         const errorCuota = new Error("429 Too Many Requests");
         const provider1 = { generate: jest.fn().mockRejectedValue(errorCuota) };
         const provider2 = {
-            generate: jest.fn().mockResolvedValue('{"direccion": "Madrid"}'),
+            generate: jest.fn().mockResolvedValue('{"subastas": [{"numero_lote": 1, "direccion": "Madrid"}]}'),
         };
 
         const aiService = createAiService([provider1, provider2]);
@@ -60,7 +62,8 @@ describe("AI Service - Sistema de Fallback y Rotación", () => {
             "Prompt",
         );
 
-        expect(result).toEqual({ ...defaultValidados, direccion: "Madrid" });
+        expect(result.subastas).toHaveLength(1);
+        expect(result.subastas[0]).toEqual({ ...defaultValidadosLote, direccion: "Madrid" });
         expect(provider1.generate).toHaveBeenCalledTimes(1);
         expect(provider2.generate).toHaveBeenCalledTimes(1);
     });
@@ -74,7 +77,7 @@ describe("AI Service - Sistema de Fallback y Rotación", () => {
         const provider2 = {
             generate: jest
                 .fn()
-                .mockResolvedValue('{"titulo_resumido": "Piso"}'),
+                .mockResolvedValue('{"subastas": [{"numero_lote": 1, "titulo_resumido": "Piso"}]}'),
         };
 
         const aiService = createAiService([provider1, provider2]);
@@ -84,8 +87,9 @@ describe("AI Service - Sistema de Fallback y Rotación", () => {
             "Prompt",
         );
 
-        expect(result).toEqual({
-            ...defaultValidados,
+        expect(result.subastas).toHaveLength(1);
+        expect(result.subastas[0]).toEqual({
+            ...defaultValidadosLote,
             titulo_resumido: "Piso",
         });
         expect(provider1.generate).toHaveBeenCalledTimes(1);

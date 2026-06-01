@@ -48,8 +48,7 @@ const usuarioSchema = new mongoose.Schema(
         },
         favoritos: [
             {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Subasta",
+                type: String,
             },
         ],
     },

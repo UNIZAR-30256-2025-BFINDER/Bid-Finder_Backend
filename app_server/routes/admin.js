@@ -41,8 +41,8 @@ const adminUsuariosController = createUsuariosController(
 /**
  * @swagger
  * tags:
- * - name: Admin
- * description: Rutas exclusivas para la administración del sistema
+ *   - name: Admin
+ *     description: Rutas exclusivas para la administración del sistema
  */
 
 /**
@@ -92,7 +92,7 @@ router.get(
 
 /**
  * @swagger
- * /admin/comentarios:
+ * /admin/usuarios:
  *   get:
  *     summary: Obtiene todos los usuarios de la plataforma para moderación
  *     tags: [Admin]

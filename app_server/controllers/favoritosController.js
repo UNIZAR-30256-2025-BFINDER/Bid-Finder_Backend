@@ -24,7 +24,7 @@ function createFavoritosController(favoritosService, logger) {
 
             const result = await favoritosService.addFavorite(userId, subastaId);
             
-            logger.info(`Usuario ${userId} añadió favorito ${subastaId} (ObjectId: ${result.subasta._id})`);
+            logger.info(`Usuario ${userId} añadió favorito ${subastaId}`);
 
             return res.status(200).json({
                 status: "success",
@@ -53,7 +53,7 @@ function createFavoritosController(favoritosService, logger) {
 
             const result = await favoritosService.removeFavorite(userId, subastaId);
             
-            logger.info(`Usuario ${userId} eliminó favorito ${subastaId} (ObjectId: ${result.subasta._id})`);
+            logger.info(`Usuario ${userId} eliminó favorito ${subastaId}`);
 
             return res.status(200).json({
                 status: "success",
