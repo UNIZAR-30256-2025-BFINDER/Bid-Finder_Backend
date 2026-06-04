@@ -25,8 +25,16 @@ Estructura estricta del JSON esperado:
       "direccion": <String o null. La dirección completa del bien de ESTE lote.>,
       "zona": <String o null. Debe ser únicamente el nombre propio de un municipio, ciudad, pueblo, provincia o región de España, nunca frases largas ni textos que no sean una localidad real. Si no hay municipio, ciudad, pueblo, provincia o región explícito, pon null. Si hay dirección, extrae también la ciudad o municipio. Nunca inventes datos ni uses textos genéricos.>,
       "referencia_catastral": <String o null. La referencia catastral del inmueble de ESTE lote.>,
-      "categoria": <String. Debe ser UNA DE LAS SIGUIENTES (en minúsculas): ["inmueble", "vehiculo", "maquinaria", "otros"].
+      "categoria": <String. Debe ser UNA DE LAS SIGUIENTES (en minúsculas): ["inmueble", "vehiculo", "maquinaria", "joyas", "arte", "derechos", "mobiliario", "otros"].
         - Elige exactamente UNA de estas opciones basándote en el texto de ESTE lote.
+          * "inmueble": viviendas, locales, garajes, trasteros, solares, fincas.
+          * "vehiculo": coches, motos, camiones, barcos, aeronaves.
+          * "maquinaria": maquinaria industrial, agrícola, herramientas, maquinaria pesada.
+          * "joyas": joyas de oro/plata, piedras preciosas, diamantes, relojes de lujo.
+          * "arte": cuadros, pinturas, esculturas, antigüedades, obras artísticas.
+          * "derechos": acciones de sociedades, participaciones sociales, licencias de taxi/actividad, marcas o patentes.
+          * "mobiliario": lotes de stock de tiendas, mobiliario de oficina, ordenadores/electrónica, muebles.
+          * "otros": cualquier bien que no encaje en las anteriores.
         - Si no puede decidir con la información disponible, devuelve "otros".>,
       "riesgo_legal": <String o null. Categoría del riesgo basada en ocupantes y cargas. Debe ser uno de: "Alto", "Medio", "Bajo". 
         - "Alto": si hay ocupantes sin título o cargas previas no cancelables (ej. usufructo vitalicio, hipoteca muy superior al valor).
