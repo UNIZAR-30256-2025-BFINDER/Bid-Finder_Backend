@@ -14,7 +14,6 @@ function mockRes() {
 const mockService = {
     getAllSubastas:  jest.fn(),
     getSubastaById: jest.fn(),
-    purgePastSubastas: jest.fn(),
 };
 
 const mockLogger = {
@@ -31,7 +30,7 @@ beforeEach(() => {
 
 describe('subastasController — getAllSubastas', () => {
 
-    it('responde 200 con la lista sin filtros and el objeto meta', async () => {
+    it('responde 200 con la lista sin filtros y el objeto meta', async () => {
         const lista = [{ id: 'BOE-1' }];
         mockService.getAllSubastas.mockResolvedValue(lista);
         const req = { query: {} }; 
@@ -129,35 +128,6 @@ describe('subastasController — getSubastaById', () => {
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({ error: expect.objectContaining({ status: 500 }) })
         );
-        expect(mockLogger.error).toHaveBeenCalled();
-    });
-});
-
-describe('subastasController — purgePastSubastas', () => {
-    it('responde 200 con el número de subastas purgadas', async () => {
-        mockService.purgePastSubastas.mockResolvedValue(5);
-        const req = {};
-        const res = mockRes();
-
-        await controller.purgePastSubastas(req, res);
-
-        expect(mockService.purgePastSubastas).toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(200);
-        expect(res.json).toHaveBeenCalledWith({
-            status: 'success',
-            message: 'Se han purgado correctamente 5 subastas expiradas.',
-            data: { purgadas: 5 }
-        });
-    });
-
-    it('responde 500 si el servicio de purga falla', async () => {
-        mockService.purgePastSubastas.mockRejectedValue(new Error('Purge fail'));
-        const req = {};
-        const res = mockRes();
-
-        await controller.purgePastSubastas(req, res);
-
-        expect(res.status).toHaveBeenCalledWith(500);
         expect(mockLogger.error).toHaveBeenCalled();
     });
 });
