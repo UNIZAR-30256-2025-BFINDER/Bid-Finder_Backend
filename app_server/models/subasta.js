@@ -1,18 +1,67 @@
 /**
- * @fileoverview Esquema de Mongoose para una Subasta individual (anteriormente denominado Lote).
- * Cada subasta representa un bien concreto (inmueble, vehículo, etc.) con sus propias
- * características, precios, dirección, coordenadas y riesgos legales.
+ * @fileoverview Modelo de datos para las Subastas (anteriormente Anuncios/Lotes).
+ * Cada documento en la colección representa una subasta (o lote) de forma plana e independiente.
  */
 
 const mongoose = require("mongoose");
+
 const NIVEL_OPORTUNIDAD_PRIORIDAD = ["ALTO", "MEDIO", "BAJO"];
 const CATEGORIAS_PERMITIDAS = ["INMUEBLE", "VEHICULO", "MAQUINARIA", "OTROS"];
 
 const subastaSchema = new mongoose.Schema(
     {
+        id: {
+            type: String,
+            required: true,
+            unique: true,
+            index: true,
+        },
+        anuncio_id: {
+            type: String,
+            index: true,
+        },
+        titulo: {
+            type: String,
+            required: true,
+        },
+        fechaPublicacion: {
+            type: String,
+            required: true,
+        },
+        urlPdf: {
+            type: String,
+            required: true,
+        },
+        texto: {
+            type: String,
+            required: true,
+        },
+        estado_ia: {
+            type: String,
+            enum: ["PENDIENTE", "PROCESADO", "ERROR"],
+            default: "PENDIENTE",
+            index: true,
+        },
+        rawXml: {
+            type: String,
+            required: true,
+        },
+        fechaExtraccion: {
+            type: Date,
+            default: Date.now,
+        },
+        // Datos específicos de la subasta/lote
         numero_lote: {
             type: Number,
             default: 1,
+        },
+        total_lotes: {
+            type: Number,
+            default: 1,
+        },
+        all_lotes: {
+            type: Array,
+            default: undefined,
         },
         titulo_resumido: {
             type: String,
@@ -87,12 +136,56 @@ const subastaSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        fechaFinalizacion: {
+            type: Date,
+            default: null,
+            index: true,
+        },
     },
-    { _id: false }
+    {
+        timestamps: true,
+    }
 );
 
-module.exports = {
-    subastaSchema,
-    NIVEL_OPORTUNIDAD_PRIORIDAD,
-    CATEGORIAS_PERMITIDAS
-};
+subastaSchema.index({ "location": "2dsphere" });
+subastaSchema.index({ fechaPublicacion: -1 });
+subastaSchema.index({ "categoria": 1 });
+subastaSchema.index({ "nivel_oportunidad": 1 });
+
+subastaSchema.index(
+    {
+        "titulo_resumido": "text",
+        "resumen": "text",
+        "titulo": "text",
+        "categoria": "text",
+        "texto": "text",
+        "direccion": "text",
+        "zona": "text",
+        "cargas_previas": "text",
+        "id": "text",
+        "referencia_catastral": "text",
+        "riesgo_legal": "text",
+    },
+    {
+        weights: {
+            "titulo_resumido": 10,
+            titulo: 8,
+            categoria: 6,
+            resumen: 5,
+            direccion: 4,
+            zona: 4,
+            id: 3,
+            referencia_catastral: 3,
+            cargas_previas: 2,
+            riesgo_legal: 2,
+            texto: 1,
+        },
+        name: "TextIndexCompleto",
+    }
+);
+
+const Subasta = mongoose.model("Subasta", subastaSchema, "subastas");
+Subasta.NIVEL_OPORTUNIDAD_PRIORIDAD = NIVEL_OPORTUNIDAD_PRIORIDAD;
+Subasta.CATEGORIAS_PERMITIDAS = CATEGORIAS_PERMITIDAS;
+
+module.exports = Subasta;

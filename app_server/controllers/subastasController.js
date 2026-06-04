@@ -97,9 +97,36 @@ function createSubastasController(subastasService, logger) {
         }
     }
 
+    /**
+     * Elimina de la base de datos las subastas cuya fecha de finalización ya ha pasado.
+     * @param {Object} req - Objeto de petición.
+     * @param {Object} res - Objeto de respuesta.
+     */
+    async function purgePastSubastas(req, res) {
+        try {
+            const count = await subastasService.purgePastSubastas();
+            return res.status(200).json({
+                status: "success",
+                message: `Se han purgado correctamente ${count} subastas expiradas.`,
+                data: {
+                    purgadas: count
+                }
+            });
+        } catch (error) {
+            logger.error("Error en purgePastSubastas:", error);
+            return res.status(500).json({
+                error: {
+                    message: "Error al purgar las subastas pasadas de la base de datos",
+                    status: 500
+                }
+            });
+        }
+    }
+
     return {
         getSubastaById,
         getAllSubastas,
+        purgePastSubastas
     };
 }
 

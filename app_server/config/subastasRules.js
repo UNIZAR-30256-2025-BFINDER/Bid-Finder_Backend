@@ -59,13 +59,8 @@ const subastasRules = {
         const textoMayus = textoLimpio.toUpperCase();
         
         const esEnlace = textoMayus.includes('HTTPS://SUBASTAS.BOE.ES') && textoLimpio.length < 600;
-        
-        const esVehiculo = textoMayus.includes('VEHÍCULO') || 
-                           textoMayus.includes('VEHICULO') || 
-                           textoMayus.includes('MATRÍCULA') || 
-                           textoMayus.includes('BASTIDOR');
 
-        if (esEnlace || esVehiculo) {
+        if (esEnlace) {
             return null; 
         }
 

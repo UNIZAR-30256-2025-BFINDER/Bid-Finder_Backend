@@ -98,28 +98,34 @@ describe('subastasRules.mapFn', () => {
         expect(subastasRules.mapFn(doc)).toBeNull();
     });
 
-    it('devuelve null si el texto menciona vehículo', () => {
+    it('permite textos que mencionan vehículo', () => {
         const doc = {
-            metadatos: { identificador: 'BOE-1' },
+            metadatos: { identificador: 'BOE-1', titulo: 'Test Vehiculo' },
             texto: { p: [{ '#text': 'Subasta de VEHÍCULO marca Seat.' }] },
         };
-        expect(subastasRules.mapFn(doc)).toBeNull();
+        const result = subastasRules.mapFn(doc);
+        expect(result).not.toBeNull();
+        expect(result.id).toBe('BOE-1');
     });
 
-    it('devuelve null si el texto menciona matrícula', () => {
+    it('permite textos que mencionan matrícula', () => {
         const doc = {
-            metadatos: { identificador: 'BOE-1' },
+            metadatos: { identificador: 'BOE-1', titulo: 'Test Matricula' },
             texto: { p: [{ '#text': 'Bien embargado con MATRÍCULA 1234ABC.' }] },
         };
-        expect(subastasRules.mapFn(doc)).toBeNull();
+        const result = subastasRules.mapFn(doc);
+        expect(result).not.toBeNull();
+        expect(result.id).toBe('BOE-1');
     });
 
-    it('devuelve null si el texto menciona bastidor', () => {
+    it('permite textos que mencionan bastidor', () => {
         const doc = {
-            metadatos: { identificador: 'BOE-1' },
+            metadatos: { identificador: 'BOE-1', titulo: 'Test Bastidor' },
             texto: { p: [{ '#text': 'Número de BASTIDOR VF7RCNFUC12345678.' }] },
         };
-        expect(subastasRules.mapFn(doc)).toBeNull();
+        const result = subastasRules.mapFn(doc);
+        expect(result).not.toBeNull();
+        expect(result.id).toBe('BOE-1');
     });
 
     it('devuelve el objeto procesado si el documento es válido', () => {
