@@ -12,6 +12,7 @@ const {
     calcularNivelOportunidad,
     calcularViabilidad,
 } = require("../utils/oportunidadCalculator");
+const { extractFallbackMunicipio } = require("../utils/textParser");
 
 const BATCH_SIZE = AI_WORKER.BATCH_SIZE;
 const DELAY_MS = AI_WORKER.DELAY_MS;
@@ -51,17 +52,7 @@ async function procesarSubasta(subastaItem, textoAnuncio, geoCodingService, logg
     );
 
     let direccion = subastaItem.direccion || "";
-    let municipio = subastaItem.zona || "";
-
-    if (!municipio && textoAnuncio) {
-        const municipioMatch =
-            textoAnuncio.match(/en ([A-ZÁÉÍÓÚÑ][a-záéíóúñ ]+)[.,]/) ||
-            textoAnuncio.match(/([A-ZÁÉÍÓÚÑ][a-záéíóúñ ]+), \d{1,2} de /);
-
-        if (municipioMatch) {
-            municipio = municipioMatch[1].trim();
-        }
-    }
+    let municipio = subastaItem.zona || extractFallbackMunicipio(textoAnuncio) || "";
 
     const geoResult = await geoCodingService.getCoordinatesFromAddress(direccion, municipio);
 

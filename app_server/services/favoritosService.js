@@ -44,13 +44,24 @@ function createFavoritosService(usuariosRepository, subastasService) {
     }
 
     /**
-     * Obtiene todos los IDs de lotes favoritos de un usuario.
+     * Obtiene todas las subastas favoritas de un usuario, completamente pobladas.
      * @param {string} userId - ID del usuario.
-     * @returns {Promise<Array>} Lista de IDs compuestos de lotes favoritos.
+     * @returns {Promise<Array>} Lista de objetos de subastas favoritas.
      */
     async function getFavorites(userId) {
         const usuario = await usuariosRepository.getFavoritos(userId);
-        return usuario.favoritos || [];
+        if (!usuario) return [];
+        const ids = usuario.favoritos || [];
+        const subastas = await Promise.all(
+            ids.map(async (id) => {
+                try {
+                    return await subastasService.getSubastaById(id);
+                } catch {
+                    return null;
+                }
+            })
+        );
+        return subastas.filter((s) => s !== null);
     }
 
     return { addFavorite, removeFavorite, getFavorites };

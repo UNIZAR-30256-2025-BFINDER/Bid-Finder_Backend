@@ -16,6 +16,7 @@
     "test:cov": "jest --coverage"
   },
   "jest": {
+    "setupFilesAfterEnv": ["<rootDir>/tests/jest.setup.js"],
     "collectCoverageFrom": [
       "app_server/**/*.js",
       "!app_server/config/database.js"

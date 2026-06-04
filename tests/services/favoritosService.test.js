@@ -65,10 +65,13 @@ describe("Favoritos Service", () => {
     describe("getFavorites", () => {
         it("debe devolver la lista de favoritos poblada", async () => {
             mockUsuariosRepository.getFavoritos.mockResolvedValue({ favoritos: ["BOE-99__L1"] });
+            const fakeSubasta = { id: "BOE-99__L1", titulo: "Subasta Test" };
+            mockSubastasService.getSubastaById.mockResolvedValue(fakeSubasta);
             
             const result = await service.getFavorites("user1");
             
-            expect(result).toEqual(["BOE-99__L1"]);
+            expect(mockSubastasService.getSubastaById).toHaveBeenCalledWith("BOE-99__L1");
+            expect(result).toEqual([fakeSubasta]);
         });
 
         it("debe devolver un array vacío si usuario.favoritos no existe o es nulo", async () => {

@@ -39,10 +39,13 @@ app.use(logger('dev', {
     }
 }));
 
+var path = require("path");
+
 // Middlewares estándar de parseo
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Configuración de seguridad CORS
 app.use(cors({

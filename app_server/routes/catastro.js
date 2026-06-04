@@ -3,16 +3,15 @@
  */
 
 const express = require('express');
-const axios = require('axios');
 const router = express.Router();
 const {
     buildFichaUrl,
     getExtendedInfo,
     buildMapImageUrl,
     buildSatelliteImageUrl,
-    buildFacadeImageUrl,
     CatastralRef,
 } = require('../services/catastroService');
+const catastroImageService = require('../services/catastroImageService');
 
 /**
  * GET /api/v1/catastro/ficha/:refCatastral
@@ -118,45 +117,14 @@ router.get('/satelite/:refCatastral', async (req, res) => {
     }
 });
 
-/**
- * GET /api/v1/catastro/fachada/:refCatastral
- * Redirige a la foto de la fachada del inmueble.
- */
 router.get('/fachada/:refCatastral', async (req, res) => {
     try {
         const { refCatastral } = req.params;
         const ref = new CatastralRef(refCatastral || '');
         const fullRef = ref.getFull();
-
-        const facadeUrl = await buildFacadeImageUrl(fullRef);
-        let exists = false;
-
-        if (facadeUrl) {
-            try {
-                // Hacer una petición rápida al Catastro para comprobar el tamaño
-                const checkRes = await axios.get(facadeUrl, { 
-                    responseType: 'arraybuffer',
-                    timeout: 2500 
-                });
-                if (checkRes.data && checkRes.data.length > 5000) {
-                    exists = true;
-                }
-            } catch (err) {
-                console.warn(`[CatastroRoute] Facade check failed for ${fullRef}, falling back:`, err.message);
-            }
-        }
-
-        if (exists && facadeUrl) {
-            return res.redirect(facadeUrl);
-        } else {
-            // Si no hay fachada, redirigir a satélite
-            const satUrl = await buildSatelliteImageUrl(fullRef);
-            if (satUrl) {
-                return res.redirect(satUrl);
-            }
-            // Fallback final
-            return res.redirect("https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=300");
-        }
+        
+        const localPath = await catastroImageService.getOrDownloadFacadeImage(fullRef);
+        return res.sendFile(localPath);
     } catch (error) {
         if (error instanceof TypeError || error.message.includes('Referencia catastral inválida')) {
             return res.status(400).json({ error: error.message });
