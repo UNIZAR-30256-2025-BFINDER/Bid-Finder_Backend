@@ -44,7 +44,7 @@ function validarLote(data, defaultNumero = 1) {
         return { numero_lote: defaultNumero };
     }
 
-    const CATEGORIAS = ["inmueble", "vehiculo", "maquinaria", "otros"];
+    const CATEGORIAS = ["inmueble", "vehiculo", "maquinaria", "joyas", "arte", "derechos", "mobiliario", "otros"];
 
     // Definición de reglas de validación por campo
     const esquema = {

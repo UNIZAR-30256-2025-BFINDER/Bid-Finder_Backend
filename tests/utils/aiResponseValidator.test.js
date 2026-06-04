@@ -137,8 +137,20 @@ describe("validarLote", () => {
     });
 
     it("acepta y normaliza una categoria válida", () => {
-        const result = validarLote({ categoria: "inmueble" });
-        expect(result.categoria).toBe("INMUEBLE");
+        const resultInmueble = validarLote({ categoria: "inmueble" });
+        expect(resultInmueble.categoria).toBe("INMUEBLE");
+
+        const resultJoyas = validarLote({ categoria: "joyas" });
+        expect(resultJoyas.categoria).toBe("JOYAS");
+
+        const resultArte = validarLote({ categoria: "arte" });
+        expect(resultArte.categoria).toBe("ARTE");
+
+        const resultDerechos = validarLote({ categoria: "derechos" });
+        expect(resultDerechos.categoria).toBe("DERECHOS");
+
+        const resultMobiliario = validarLote({ categoria: "mobiliario" });
+        expect(resultMobiliario.categoria).toBe("MOBILIARIO");
     });
 
     it("asigna numero_lote por defecto si no viene", () => {
