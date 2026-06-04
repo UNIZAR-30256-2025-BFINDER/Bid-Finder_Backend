@@ -16,7 +16,8 @@ jest.mock("../../app_server/services/subastasService", () => {
                 });
             }
             return Promise.resolve(null);
-        })
+        }),
+        purgePastSubastas: jest.fn().mockResolvedValue(10)
     });
 });
 
@@ -41,5 +42,14 @@ describe("GET /api/v1/subastas/:id", () => {
         const response = await request(app).get("/api/v1/subastas/abc");
         expect(response.status).toBe(400);
         expect(response.body.error.message).toContain("identificador que comience con 'BOE'");
+    });
+});
+
+describe("DELETE /api/v1/subastas/purge-past", () => {
+    test("debe devolver 200 y el conteo de subastas purgadas", async () => {
+        const response = await request(app).delete("/api/v1/subastas/purge-past");
+        expect(response.status).toBe(200);
+        expect(response.body.status).toBe("success");
+        expect(response.body.data.purgadas).toBe(10);
     });
 });

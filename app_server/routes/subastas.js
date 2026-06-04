@@ -134,6 +134,7 @@ router.get("/", subastasController.getAllSubastas);
  *       500:
  *         description: Error interno del servidor
  */
+router.delete("/purge-past", subastasController.purgePastSubastas);
 router.get("/:id", subastasController.getSubastaById);
 
 router.use("/:id/comentarios", comentariosRouter);
