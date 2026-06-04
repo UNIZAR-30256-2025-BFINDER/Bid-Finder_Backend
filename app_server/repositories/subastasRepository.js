@@ -4,7 +4,7 @@
  * dentro de un anuncio general, filtros, Full-Text Search y agregaciones.
  */
 
-const Anuncio = require('../models/anuncio');
+const Subasta = require('../models/subasta');
 
 /**
  * Genera un ID compuesto para identificar una subasta específica dentro de un anuncio.
@@ -32,6 +32,31 @@ function parseSubastaId(subastaId) {
 }
 
 /**
+ * Calcula la fecha de finalización por defecto a partir de la fecha de publicación (20 días después).
+ * Soporta de manera robusta formatos de texto YYYYMMDD y valores numéricos.
+ * @param {string|number} fechaPublicacion - Fecha de publicación original.
+ * @returns {Date|null} Fecha de finalización calculada, o null si la entrada es inválida.
+ */
+function calculateDefaultFinalizacion(fechaPublicacion) {
+    if (!fechaPublicacion) return null;
+    const pubStr = String(fechaPublicacion).trim();
+    let pubDate;
+    if (/^\d{8}$/.test(pubStr)) {
+        const y = parseInt(pubStr.substring(0, 4), 10);
+        const m = parseInt(pubStr.substring(4, 6), 10) - 1;
+        const d = parseInt(pubStr.substring(6, 8), 10);
+        pubDate = new Date(y, m, d);
+    } else {
+        pubDate = new Date(pubStr);
+    }
+    if (!isNaN(pubDate.getTime())) {
+        pubDate.setDate(pubDate.getDate() + 20);
+        return pubDate;
+    }
+    return null;
+}
+
+/**
  * Crea una instancia del repositorio de subastas.
  * @returns {Object} Colección de métodos de acceso a datos y estadísticas.
  */
@@ -42,11 +67,9 @@ function createSubastasRepository() {
      * @returns {Promise<Array>} Array de objetos { categoria, total } ordenado descendentemente.
      */
     async function aggregateByCategoria() {
-        return await Anuncio.aggregate([
-            { $match: { estado_ia: 'PROCESADO' } },
-            { $unwind: "$subastas" },
-            { $match: { "subastas.categoria": { $ne: null } } },
-            { $group: { _id: "$subastas.categoria", total: { $sum: 1 } } },
+        return await Subasta.aggregate([
+            { $match: { estado_ia: 'PROCESADO', categoria: { $ne: null } } },
+            { $group: { _id: "$categoria", total: { $sum: 1 } } },
             { $sort: { total: -1 } },
             { $project: { categoria: "$_id", total: 1, _id: 0 } }
         ]);
@@ -57,11 +80,9 @@ function createSubastasRepository() {
      * @returns {Promise<Array>} Array de objetos { provincia, total } ordenado descendentemente.
      */
     async function aggregateByProvincia() {
-        return await Anuncio.aggregate([
-            { $match: { estado_ia: 'PROCESADO' } },
-            { $unwind: "$subastas" },
-            { $match: { "subastas.zona": { $ne: null } } },
-            { $group: { _id: "$subastas.zona", total: { $sum: 1 } } },
+        return await Subasta.aggregate([
+            { $match: { estado_ia: 'PROCESADO', zona: { $ne: null } } },
+            { $group: { _id: "$zona", total: { $sum: 1 } } },
             { $sort: { total: -1 } },
             { $project: { provincia: "$_id", total: 1, _id: 0 } }
         ]);
@@ -73,66 +94,37 @@ function createSubastasRepository() {
      * @returns {Promise<Array>} Array de documentos de subastas individuales aplanados.
      */
     async function findAll(filtros = {}) {
-        const pipeline = [];
-
-        // Fase 1: Filtrar anuncios procesados
-        const matchInicial = { estado_ia: 'PROCESADO' };
+        const query = { estado_ia: 'PROCESADO' };
 
         // Full-Text Search
         if (filtros.q) {
-            matchInicial.$text = { $search: filtros.q };
+            query.$text = { $search: filtros.q };
         }
-
-        pipeline.push({ $match: matchInicial });
-
-        // Si hay búsqueda por texto, añadir el score
-        if (filtros.q) {
-            pipeline.push({ $addFields: { _textScore: { $meta: "textScore" } } });
-        }
-
-        // Fase 2: Guardar el número total de subastas antes de $unwind
-        pipeline.push({
-            $addFields: {
-                _totalLotes: { $size: { $ifNull: ["$subastas", []] } }
-            }
-        });
-
-        // Fase 3: Aplanar subastas
-        pipeline.push({ $unwind: { path: "$subastas", preserveNullAndEmptyArrays: false } });
-
-        // Fase 4: Filtros sobre campos de la subasta individual
-        const matchSubastas = {};
 
         if (filtros.provincia) {
             const regexProv = new RegExp(filtros.provincia, 'i');
-            matchSubastas.$or = [
-                { "subastas.zona": regexProv },
-                { "subastas.direccion": regexProv }
+            query.$or = [
+                { zona: regexProv },
+                { direccion: regexProv }
             ];
         }
 
         if (filtros.categoria) {
             const regexCat = new RegExp(filtros.categoria, 'i');
-            matchSubastas.$or = matchSubastas.$or || [];
-            if (filtros.provincia) {
-                const provCondition = matchSubastas.$or;
-                delete matchSubastas.$or;
-                matchSubastas.$and = [
+            const catOr = [
+                { titulo_resumido: regexCat },
+                { resumen: regexCat },
+                { texto: regexCat }
+            ];
+            if (query.$or) {
+                const provCondition = query.$or;
+                delete query.$or;
+                query.$and = [
                     { $or: provCondition },
-                    {
-                        $or: [
-                            { "subastas.titulo_resumido": regexCat },
-                            { "subastas.resumen": regexCat },
-                            { texto: regexCat }
-                        ]
-                    }
+                    { $or: catOr }
                 ];
             } else {
-                matchSubastas.$or = [
-                    { "subastas.titulo_resumido": regexCat },
-                    { "subastas.resumen": regexCat },
-                    { texto: regexCat }
-                ];
+                query.$or = catOr;
             }
         }
 
@@ -143,7 +135,7 @@ function createSubastasRepository() {
             if (precioMin !== undefined && !isNaN(precioMin)) precioCond.$gte = precioMin;
             if (precioMax !== undefined && !isNaN(precioMax)) precioCond.$lte = precioMax;
             if (Object.keys(precioCond).length > 0) {
-                matchSubastas["subastas.precio_salida"] = { ...precioCond, $ne: null };
+                query.precio_salida = { ...precioCond, $ne: null };
             }
         }
 
@@ -153,62 +145,32 @@ function createSubastasRepository() {
             if (viabilidadQuery === 'MEDIO') viabilidadQuery = 'MEDIA';
             if (viabilidadQuery === 'BAJO') viabilidadQuery = 'BAJA';
             if (['ALTA', 'MEDIA', 'BAJA'].includes(viabilidadQuery)) {
-                matchSubastas["subastas.viabilidad"] = viabilidadQuery;
+                query.viabilidad = viabilidadQuery;
             }
         }
 
         if (filtros.tipo_lote) {
             if (filtros.tipo_lote === 'multi') {
-                matchSubastas["_totalLotes"] = { $gt: 1 };
+                query.total_lotes = { $gt: 1 };
             } else if (filtros.tipo_lote === 'simple') {
-                matchSubastas["_totalLotes"] = 1;
+                query.total_lotes = 1;
             }
         }
 
-        if (Object.keys(matchSubastas).length > 0) {
-            pipeline.push({ $match: matchSubastas });
-        }
-
-        // Fase 5: Proyectar campos aplanados para compatibilidad con frontend
-        pipeline.push({
-            $project: {
-                _id: 0,
-                id: { $concat: ["$id", "__L", { $toString: "$subastas.numero_lote" }] },
-                anuncio_id: "$id",
-                numero_lote: "$subastas.numero_lote",
-                total_lotes: "$_totalLotes",
-                titulo: 1,
-                fechaPublicacion: 1,
-                urlPdf: 1,
-                texto: 1,
-                estado_ia: 1,
-                titulo_resumido: "$subastas.titulo_resumido",
-                resumen: "$subastas.resumen",
-                categoria: "$subastas.categoria",
-                precio_salida: "$subastas.precio_salida",
-                valor_tasacion: "$subastas.valor_tasacion",
-                diferencia_porcentual_oportunidad: "$subastas.diferencia_porcentual_oportunidad",
-                nivel_oportunidad: "$subastas.nivel_oportunidad",
-                viabilidad: "$subastas.viabilidad",
-                direccion: "$subastas.direccion",
-                zona: "$subastas.zona",
-                referencia_catastral: "$subastas.referencia_catastral",
-                location: "$subastas.location",
-                riesgo_legal: "$subastas.riesgo_legal",
-                ocupantes: "$subastas.ocupantes",
-                cargas_previas: "$subastas.cargas_previas",
-                ...(filtros.q ? { _textScore: 1 } : {})
-            }
-        });
-
-        // Fase 6: Ordenación
+        let mQuery = Subasta.find(query);
         if (filtros.q) {
-            pipeline.push({ $sort: { _textScore: -1 } });
+            mQuery = mQuery.select({ score: { $meta: "textScore" } }).sort({ score: { $meta: "textScore" } });
         } else {
-            pipeline.push({ $sort: { fechaPublicacion: -1 } });
+            mQuery = mQuery.sort({ fechaPublicacion: -1 });
         }
 
-        return await Anuncio.aggregate(pipeline);
+        const docs = await mQuery.lean();
+        return docs.map(doc => {
+            if (doc.score !== undefined) {
+                doc._textScore = doc.score;
+            }
+            return doc;
+        });
     }
 
     /**
@@ -218,50 +180,8 @@ function createSubastasRepository() {
      */
     async function findById(subastaId) {
         const { anuncioId, numeroSubasta } = parseSubastaId(subastaId);
-
-        const result = await Anuncio.aggregate([
-            { $match: { id: anuncioId } },
-            {
-                $addFields: {
-                    _totalLotes: { $size: { $ifNull: ["$subastas", []] } },
-                    _allLotes: "$subastas"
-                }
-            },
-            { $unwind: { path: "$subastas", preserveNullAndEmptyArrays: true } },
-            { $match: { "subastas.numero_lote": numeroSubasta } },
-            {
-                $project: {
-                    _id: 0,
-                    id: { $concat: ["$id", "__L", { $toString: "$subastas.numero_lote" }] },
-                    anuncio_id: "$id",
-                    numero_lote: "$subastas.numero_lote",
-                    total_lotes: "$_totalLotes",
-                    all_lotes: "$_allLotes",
-                    titulo: 1,
-                    fechaPublicacion: 1,
-                    urlPdf: 1,
-                    texto: 1,
-                    estado_ia: 1,
-                    titulo_resumido: "$subastas.titulo_resumido",
-                    resumen: "$subastas.resumen",
-                    categoria: "$subastas.categoria",
-                    precio_salida: "$subastas.precio_salida",
-                    valor_tasacion: "$subastas.valor_tasacion",
-                    diferencia_porcentual_oportunidad: "$subastas.diferencia_porcentual_oportunidad",
-                    nivel_oportunidad: "$subastas.nivel_oportunidad",
-                    viabilidad: "$subastas.viabilidad",
-                    direccion: "$subastas.direccion",
-                    zona: "$subastas.zona",
-                    referencia_catastral: "$subastas.referencia_catastral",
-                    location: "$subastas.location",
-                    riesgo_legal: "$subastas.riesgo_legal",
-                    ocupantes: "$subastas.ocupantes",
-                    cargas_previas: "$subastas.cargas_previas",
-                }
-            }
-        ]);
-
-        return result.length > 0 ? result[0] : null;
+        const targetId = `${anuncioId}__L${numeroSubasta}`;
+        return await Subasta.findOne({ id: targetId }).lean();
     }
 
     /**
@@ -270,15 +190,20 @@ function createSubastasRepository() {
      * @returns {Promise<Object>} Resumen de la operación (upserted, modified, matched).
      */
     async function saveSubastas(anuncios) {
-        const operations = anuncios.map((anuncio) => ({
-            updateOne: {
-                filter: { id: anuncio.id },
-                update: { $set: anuncio },
-                upsert: true,
-            },
-        }));
+        const operations = anuncios.map((anuncio) => {
+            if (!anuncio.fechaFinalizacion && anuncio.fechaPublicacion) {
+                anuncio.fechaFinalizacion = calculateDefaultFinalizacion(anuncio.fechaPublicacion);
+            }
+            return {
+                updateOne: {
+                    filter: { id: anuncio.id },
+                    update: { $set: anuncio },
+                    upsert: true,
+                },
+            };
+        });
 
-        const result = await Anuncio.bulkWrite(operations);
+        const result = await Subasta.bulkWrite(operations);
         return {
             upserted: result.upsertedCount,
             modified: result.modifiedCount,
@@ -292,7 +217,7 @@ function createSubastasRepository() {
      * @returns {Promise<Array>} Anuncios en estado 'PENDIENTE'.
      */
     async function findPendingAI(limit = 10) {
-        return await Anuncio.find({ estado_ia: 'PENDIENTE' }).limit(limit);
+        return await Subasta.find({ estado_ia: 'PENDIENTE' }).limit(limit);
     }
 
     /**
@@ -303,16 +228,74 @@ function createSubastasRepository() {
      * @returns {Promise<Object>} Documento actualizado.
      */
     async function updateAIExtraction(id, subastas, estado = 'PROCESADO') {
-        return await Anuncio.findOneAndUpdate(
-            { id: id },
-            {
-                $set: {
-                    subastas: subastas,
-                    estado_ia: estado
+        const original = await Subasta.findOne({ id: id });
+        if (!original) {
+            return null;
+        }
+
+        if (estado === 'ERROR' || !subastas || subastas.length === 0) {
+            return await Subasta.findOneAndUpdate(
+                { id: id },
+                { $set: { estado_ia: estado === 'ERROR' ? 'ERROR' : 'PROCESADO', total_lotes: 0 } },
+                { new: true }
+            );
+        }
+
+        const all_lotes = subastas.map(s => ({
+            numero_lote: s.numero_lote,
+            precio_salida: s.precio_salida,
+            titulo_resumido: s.titulo_resumido,
+            categoria: s.categoria,
+            direccion: s.direccion
+        }));
+
+        const bulkOps = subastas.map(s => {
+            const lotDoc = {
+                id: `${id}__L${s.numero_lote}`,
+                anuncio_id: id,
+                titulo: original.titulo,
+                fechaPublicacion: original.fechaPublicacion,
+                fechaFinalizacion: original.fechaFinalizacion && original.fechaFinalizacion.getFullYear() !== 1970
+                    ? original.fechaFinalizacion
+                    : calculateDefaultFinalizacion(original.fechaPublicacion),
+                urlPdf: original.urlPdf,
+                texto: original.texto,
+                rawXml: original.rawXml,
+                fechaExtraccion: original.fechaExtraccion,
+                estado_ia: 'PROCESADO',
+                numero_lote: s.numero_lote,
+                total_lotes: subastas.length,
+                all_lotes: all_lotes,
+                titulo_resumido: s.titulo_resumido,
+                resumen: s.resumen,
+                categoria: s.categoria,
+                precio_salida: s.precio_salida,
+                valor_tasacion: s.valor_tasacion,
+                diferencia_porcentual_oportunidad: s.diferencia_porcentual_oportunidad,
+                nivel_oportunidad: s.nivel_oportunidad,
+                viabilidad: s.viabilidad,
+                direccion: s.direccion,
+                zona: s.zona,
+                referencia_catastral: s.referencia_catastral,
+                location: s.location,
+                riesgo_legal: s.riesgo_legal,
+                ocupantes: s.ocupantes,
+                cargas_previas: s.cargas_previas
+            };
+
+            return {
+                updateOne: {
+                    filter: { id: lotDoc.id },
+                    update: { $set: lotDoc },
+                    upsert: true
                 }
-            },
-            { new: true }
-        );
+            };
+        });
+
+        await Subasta.bulkWrite(bulkOps);
+        await Subasta.deleteOne({ id: id });
+
+        return await Subasta.findOne({ id: `${id}__L1` }).lean();
     }
 
     /**
@@ -323,11 +306,11 @@ function createSubastasRepository() {
         const inicioDeHoy = new Date();
         inicioDeHoy.setHours(0, 0, 0, 0);
 
-        const ingresadasHoy = await Anuncio.countDocuments({
+        const ingresadasHoy = await Subasta.countDocuments({
             createdAt: { $gte: inicioDeHoy }
         });
 
-        const ultimoAnuncio = await Anuncio.findOne()
+        const ultimoAnuncio = await Subasta.findOne()
             .sort({ createdAt: -1 })
             .select('createdAt');
 
@@ -335,6 +318,18 @@ function createSubastasRepository() {
             ingresadasHoy,
             ultimaIngesta: ultimoAnuncio ? ultimoAnuncio.createdAt : null
         };
+    }
+
+    /**
+     * Purga las subastas cuya fecha de finalización ya ha pasado.
+     * @param {Date} [now=new Date()] - Fecha de corte para la purga.
+     * @returns {Promise<number>} Número de documentos eliminados.
+     */
+    async function purgePastSubastas(now = new Date()) {
+        const result = await Subasta.deleteMany({
+            fechaFinalizacion: { $lt: now }
+        });
+        return result.deletedCount;
     }
 
     return {
@@ -346,9 +341,11 @@ function createSubastasRepository() {
         getSystemStats,
         aggregateByCategoria,
         aggregateByProvincia,
+        purgePastSubastas,
         parseLoteId: parseSubastaId,
         buildLoteId: buildSubastaId
     };
 }
+
 
 module.exports = createSubastasRepository;

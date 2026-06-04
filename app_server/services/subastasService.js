@@ -29,9 +29,18 @@ function createSubastasService(subastasRepository) {
     return await subastasRepository.findById(id);
   }
 
+  /**
+   * Purga de la base de datos las subastas que ya han expirado.
+   * @returns {Promise<number>} Número de subastas purgadas.
+   */
+  async function purgePastSubastas() {
+    return await subastasRepository.purgePastSubastas();
+  }
+
   return {
     getSubastaById,
-    getAllSubastas
+    getAllSubastas,
+    purgePastSubastas
   };
 }
 

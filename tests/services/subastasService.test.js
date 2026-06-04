@@ -7,6 +7,7 @@ const createSubastasService = require('../../app_server/services/subastasService
 const mockRepository = {
     findAll:   jest.fn(),
     findById:  jest.fn(),
+    purgePastSubastas: jest.fn(),
 };
 
 const service = createSubastasService(mockRepository);
@@ -67,6 +68,23 @@ describe('subastasService', () => {
             mockRepository.findById.mockRejectedValue(new Error('DB caída'));
 
             await expect(service.getSubastaById('BOE-1')).rejects.toThrow('DB caída');
+        });
+    });
+
+    describe('purgePastSubastas', () => {
+        it('llama a purgePastSubastas en el repositorio y retorna el conteo de purgas', async () => {
+            mockRepository.purgePastSubastas.mockResolvedValue(15);
+
+            const result = await service.purgePastSubastas();
+
+            expect(result).toBe(15);
+            expect(mockRepository.purgePastSubastas).toHaveBeenCalledTimes(1);
+        });
+
+        it('propaga el error si el repositorio de purgas falla', async () => {
+            mockRepository.purgePastSubastas.mockRejectedValue(new Error('Query error'));
+
+            await expect(service.purgePastSubastas()).rejects.toThrow('Query error');
         });
     });
 });
