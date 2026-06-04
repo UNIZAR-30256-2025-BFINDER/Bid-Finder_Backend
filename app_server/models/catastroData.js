@@ -1,6 +1,5 @@
 /**
  * @fileoverview Modelo de Mongoose para almacenar en caché los datos oficiales del Catastro.
- * Evita realizar llamadas redundantes a las APIs gubernamentales, respetando límites de peticiones.
  */
 
 const mongoose = require("mongoose");
