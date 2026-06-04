@@ -27,7 +27,7 @@ async function main() {
         await mongoose.connection.db.dropCollection('subastas');
         console.log('[DeleteAllSubastas] Colección `subastas` eliminada.');
       }
-    } catch (e) {
+    } catch {
       // ignore drop errors
     }
 

@@ -5,7 +5,6 @@
 const express = require('express');
 const request = require('supertest');
 const fs = require('fs');
-const path = require('path');
 const axios = require('axios');
 
 jest.mock('fs');
@@ -69,7 +68,7 @@ describe('Catastro Routes', () => {
 
     it('GET /catastro/fachada/:refCatastral intenta descargar y guardar la imagen', async () => {
         const originalSendFile = express.response.sendFile;
-        express.response.sendFile = jest.fn(function(filePath) {
+        express.response.sendFile = jest.fn(function() {
             return this.status(200).send('fake file response');
         });
 

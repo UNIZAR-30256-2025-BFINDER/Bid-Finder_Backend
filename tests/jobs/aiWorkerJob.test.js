@@ -59,7 +59,7 @@ describe('AI Worker — test de integración (multi-subasta)', () => {
     });
 
     it('debería procesar un anuncio PENDIENTE con una sola subasta', async () => {
-        const anuncioOriginal = await Subasta.create({
+        await Subasta.create({
             id: 'TEST-123',
             titulo: 'Anuncio de prueba',
             texto: 'Texto crudo del BOE',

@@ -56,7 +56,7 @@ function createFavoritosService(usuariosRepository, subastasService) {
             ids.map(async (id) => {
                 try {
                     return await subastasService.getSubastaById(id);
-                } catch (err) {
+                } catch {
                     return null;
                 }
             })
