@@ -4,15 +4,17 @@
 
 const axios = require('axios');
 const CatastroData = require('../models/catastroData');
+const logger = require('../utils/logger');
+const { CATASTRO } = require('../config/constants');
 
-const CATASTRO_API_URL =
-    'https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCallejero.asmx/Consulta_DNPRC';
-
-const CATASTRO_COORD_URL =
-    'https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCoordenadas.asmx/Consulta_CPMRC';
-
-const CATASTRO_WFS_URL =
-    'http://ovc.catastro.meh.es/INSPIRE/wfsCP.aspx';
+const REQUEST_TIMEOUT = CATASTRO.TIMEOUT_MS;
+const MAP_WIDTH = CATASTRO.MAP_WIDTH;
+const MAP_HEIGHT = CATASTRO.MAP_HEIGHT;
+const BBOX_DELTA_LAT = CATASTRO.BBOX_DELTA_LAT;
+const BBOX_DELTA_LON = CATASTRO.BBOX_DELTA_LON;
+const CATASTRO_API_URL = CATASTRO.API_URL;
+const CATASTRO_COORD_URL = CATASTRO.COORD_URL;
+const CATASTRO_WFS_URL = CATASTRO.WFS_URL;
 
 /**
  * Value Object que encapsula y valida una Referencia Catastral española.
@@ -37,7 +39,7 @@ class CatastralRef {
     }
 
     isRustico() {
-        // Rústico: 5 dígitos seguidos de una letra (ej: 16256A...)
+        // Rústico: 5 dígitos seguidos de una letra
         return /^[0-9]{5}[A-Z]/.test(this.value);
     }
 
@@ -100,7 +102,7 @@ class CatastroApiClient {
     async fetchLocationData(rc) {
         const response = await axios.get(CATASTRO_API_URL, {
             params: { Provincia: '', Municipio: '', RC: rc },
-            timeout: 8000,
+            timeout: REQUEST_TIMEOUT,
             responseType: 'text',
         });
         return response.data;
@@ -109,7 +111,7 @@ class CatastroApiClient {
     async fetchCoordinates(rc14) {
         const response = await axios.get(CATASTRO_COORD_URL, {
             params: { Provincia: '', Municipio: '', SRS: 'EPSG:4326', RC: rc14 },
-            timeout: 8000,
+            timeout: REQUEST_TIMEOUT,
             responseType: 'text',
         });
         return response.data;
@@ -124,7 +126,7 @@ class CatastroApiClient {
                 STOREDQUERY_ID: 'GetParcel',
                 refcat: rc14,
             },
-            timeout: 8000,
+            timeout: REQUEST_TIMEOUT,
             responseType: 'text',
         });
         return response.data;
@@ -164,7 +166,7 @@ class CatastroService {
                 urbRus: ref.getUrbRusCode(),
             };
         } catch (error) {
-            console.error(`[CatastroService] Error resolving del/mun for ${refCatastral}:`, error.message);
+            logger.error(`[CatastroService] Error resolving del/mun for ${refCatastral}: ${error.message}`);
             return null;
         }
     }
@@ -206,15 +208,13 @@ class CatastroService {
             const fullRef = ref.getFull();
             const parcelaRef = ref.getParcela();
 
-            // 1. Intentar obtener de la caché (MongoDB)
             const cached = await CatastroData.findOne({ referenciaCatastral: fullRef });
             if (cached) {
                 return cached;
             }
 
-            // 2. Si no está en caché, consultar datos descriptivos básicos
             const basicXml = await this.client.fetchLocationData(fullRef);
-            
+
             const claseMatch = basicXml.match(/<cn>\s*([^<]+)\s*<\/cn>/);
             const lusoMatch = basicXml.match(/<luso>\s*([^<]+)\s*<\/luso>/);
             const sfcMatch = basicXml.match(/<sfc>\s*(\d+)\s*<\/sfc>/);
@@ -238,7 +238,7 @@ class CatastroService {
                     };
                 }
             } catch (coordErr) {
-                console.warn('[CatastroService] Error fetching coordinates:', coordErr.message);
+                logger.warn(`[CatastroService] Error fetching coordinates: ${coordErr.message}`);
             }
 
             // Obtener superficie gráfica de la parcela usando WFS
@@ -250,7 +250,7 @@ class CatastroService {
                     superficieGrafica = parseInt(areaMatch[1], 10);
                 }
             } catch (wfsErr) {
-                console.warn('[CatastroService] Error fetching WFS parcel area:', wfsErr.message);
+                logger.warn(`[CatastroService] Error fetching WFS parcel area: ${wfsErr.message}`);
             }
 
             // Fallback para rústica si WFS falló
@@ -273,14 +273,18 @@ class CatastroService {
                 participacion: cptMatch ? cptMatch[1].trim() : null,
             };
 
-            // Guardar en la caché (MongoDB) asíncronamente
-            CatastroData.create(dataToSave).catch(saveErr => {
-                console.error('[CatastroService] Error saving to MongoDB cache:', saveErr.message);
+            // Guardar en la caché (MongoDB) usando upsert para evitar DuplicateKeyError bajo concurrencia
+            CatastroData.findOneAndUpdate(
+                { referenciaCatastral: dataToSave.referenciaCatastral },
+                { $setOnInsert: dataToSave },
+                { upsert: true, new: false }
+            ).catch(saveErr => {
+                logger.warn(`[CatastroService] Error saving to MongoDB cache: ${saveErr.message}`);
             });
 
             return dataToSave;
         } catch (error) {
-            console.error(`[CatastroService] Error fetching extended info for ${refCatastral}:`, error.message);
+            logger.error(`[CatastroService] Error fetching extended info for ${refCatastral}: ${error.message}`);
             return null;
         }
     }
@@ -292,22 +296,14 @@ class CatastroService {
         try {
             const ref = new CatastralRef(refCatastral);
             const info = await this.getExtendedInfo(ref.getFull());
-            if (!info || !info.coordenadas) {
-                return null;
-            }
+            if (!info || !info.coordenadas) return null;
 
             const { lat, lng } = info.coordenadas;
-            // Calcular una caja delimitadora de ~150m alrededor del centro
-            const deltaLat = 0.0008;
-            const deltaLon = 0.0012;
-            const latMin = lat - deltaLat;
-            const latMax = lat + deltaLat;
-            const lonMin = lng - deltaLon;
-            const lonMax = lng + deltaLon;
+            const { latMin, latMax, lonMin, lonMax } = this._buildBoundingBox(lat, lng);
 
-            return `http://ovc.catastro.meh.es/cartografia/INSPIRE/spadgcwms.aspx?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=CP.CadastralParcel&FORMAT=image/png&CRS=EPSG:4326&BBOX=${latMin},${lonMin},${latMax},${lonMax}&WIDTH=600&HEIGHT=450&STYLES=`;
+            return `http://ovc.catastro.meh.es/cartografia/INSPIRE/spadgcwms.aspx?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=CP.CadastralParcel&FORMAT=image/png&CRS=EPSG:4326&BBOX=${latMin},${lonMin},${latMax},${lonMax}&WIDTH=${MAP_WIDTH}&HEIGHT=${MAP_HEIGHT}&STYLES=`;
         } catch (error) {
-            console.error(`[CatastroService] Error building map image URL for ${refCatastral}:`, error.message);
+            logger.error(`[CatastroService] Error building map image URL for ${refCatastral}: ${error.message}`);
             return null;
         }
     }
@@ -319,22 +315,14 @@ class CatastroService {
         try {
             const ref = new CatastralRef(refCatastral);
             const info = await this.getExtendedInfo(ref.getFull());
-            if (!info || !info.coordenadas) {
-                return null;
-            }
+            if (!info || !info.coordenadas) return null;
 
             const { lat, lng } = info.coordenadas;
-            // Calcular una caja delimitadora de ~150m alrededor del centro
-            const deltaLat = 0.0008;
-            const deltaLon = 0.0012;
-            const latMin = lat - deltaLat;
-            const latMax = lat + deltaLat;
-            const lonMin = lng - deltaLon;
-            const lonMax = lng + deltaLon;
+            const { latMin, latMax, lonMin, lonMax } = this._buildBoundingBox(lat, lng);
 
-            return `https://www.ign.es/wms-inspire/pnoa-ma?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=OI.OrthoimageCoverage&FORMAT=image/jpeg&CRS=EPSG:4326&BBOX=${latMin},${lonMin},${latMax},${lonMax}&WIDTH=600&HEIGHT=450&STYLES=`;
+            return `https://www.ign.es/wms-inspire/pnoa-ma?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=OI.OrthoimageCoverage&FORMAT=image/jpeg&CRS=EPSG:4326&BBOX=${latMin},${lonMin},${latMax},${lonMax}&WIDTH=${MAP_WIDTH}&HEIGHT=${MAP_HEIGHT}&STYLES=`;
         } catch (error) {
-            console.error(`[CatastroService] Error building satellite image URL for ${refCatastral}:`, error.message);
+            logger.error(`[CatastroService] Error building satellite image URL for ${refCatastral}: ${error.message}`);
             return null;
         }
     }
@@ -347,10 +335,29 @@ class CatastroService {
             const ref = new CatastralRef(refCatastral);
             return `http://ovc.catastro.meh.es/OVCServWeb/OVCWcfLibres/OVCFotoFachada.svc/RecuperarFotoFachadaGet?ReferenciaCatastral=${ref.getFull()}`;
         } catch (error) {
-            console.error(`[CatastroService] Error building facade image URL for ${refCatastral}:`, error.message);
+            logger.error(`[CatastroService] Error building facade image URL for ${refCatastral}: ${error.message}`);
             return null;
         }
     }
+
+    /**
+     * Calcula el bounding box geográfico centrado en un punto para consultas WMS.
+     * @param {number} lat - Latitud central.
+     * @param {number} lng - Longitud central.
+     * @returns {{latMin: number, latMax: number, lonMin: number, lonMax: number}}
+     */
+    _buildBoundingBox(lat, lng) {
+        return {
+            latMin: lat - BBOX_DELTA_LAT,
+            latMax: lat + BBOX_DELTA_LAT,
+            lonMin: lng - BBOX_DELTA_LON,
+            lonMax: lng + BBOX_DELTA_LON,
+        };
+    }
+}
+
+function createCatastroService(client) {
+    return new CatastroService(client);
 }
 
 const serviceInstance = new CatastroService();
@@ -365,4 +372,5 @@ module.exports = {
     CatastralRef,
     DelegacionMapper,
     CatastroService,
+    createCatastroService,
 };

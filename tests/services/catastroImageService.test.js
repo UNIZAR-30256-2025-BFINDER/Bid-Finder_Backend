@@ -13,26 +13,32 @@ jest.mock('axios');
 jest.mock('../../app_server/services/catastroService', () => ({
     buildFacadeImageUrl: jest.fn(),
     buildSatelliteImageUrl: jest.fn(),
+    buildMapImageUrl: jest.fn(),
 }));
 
-const { buildFacadeImageUrl, buildSatelliteImageUrl } = require('../../app_server/services/catastroService');
+const { buildFacadeImageUrl, buildSatelliteImageUrl, buildMapImageUrl } = require('../../app_server/services/catastroService');
 
 describe('CatastroImageService', () => {
     const mockRef = '7756103TP6075N0001LS';
 
     beforeEach(() => {
         jest.clearAllMocks();
+        // Por defecto, fs.existsSync retorna false para simular que no hay caché
+        fs.existsSync.mockReturnValue(false);
     });
 
-    it('getLocalImagePath devuelve la ruta correcta en mayúsculas', () => {
-        const expectedPath = path.join(catastroImageService.imagesDir, `${mockRef.toUpperCase()}.png`);
-        expect(catastroImageService.getLocalImagePath(mockRef.toLowerCase())).toBe(expectedPath);
+    it('getLocalImagePath devuelve la ruta correcta en mayúsculas con sufijo de tipo', () => {
+        const expectedPath = path.join(catastroImageService.imagesDir, `${mockRef.toUpperCase()}_facade.png`);
+        expect(catastroImageService.getLocalImagePath(mockRef.toLowerCase(), 'facade')).toBe(expectedPath);
     });
 
     it('isCached devuelve true si existe en fs', () => {
-        fs.existsSync.mockReturnValueOnce(true);
-        expect(catastroImageService.isCached(mockRef)).toBe(true);
-        expect(fs.existsSync).toHaveBeenCalledWith(catastroImageService.getLocalImagePath(mockRef));
+        // Mockear de modo que el nuevo archivo sí exista
+        fs.existsSync.mockImplementation((filePath) => {
+            return filePath.endsWith('_facade.png');
+        });
+
+        expect(catastroImageService.isCached(mockRef, 'facade')).toBe(true);
     });
 
     it('downloadAndSave descarga y escribe el archivo si es mayor al tamaño mínimo', async () => {
@@ -60,15 +66,16 @@ describe('CatastroImageService', () => {
     });
 
     it('getOrDownloadFacadeImage retorna caché si ya existe', async () => {
-        fs.existsSync.mockReturnValueOnce(true);
+        fs.existsSync.mockImplementation((filePath) => {
+            return filePath.endsWith('_facade.png');
+        });
 
         const result = await catastroImageService.getOrDownloadFacadeImage(mockRef);
-        expect(result).toBe(catastroImageService.getLocalImagePath(mockRef));
+        expect(result).toBe(catastroImageService.getLocalImagePath(mockRef, 'facade'));
         expect(buildFacadeImageUrl).not.toHaveBeenCalled();
     });
 
     it('getOrDownloadFacadeImage intenta descargar fachada si no existe en caché', async () => {
-        fs.existsSync.mockReturnValueOnce(false); // mock isCached check
         buildFacadeImageUrl.mockResolvedValueOnce('http://facade.com/img.png');
         
         // Mock successful download
@@ -77,13 +84,12 @@ describe('CatastroImageService', () => {
         });
 
         const result = await catastroImageService.getOrDownloadFacadeImage(mockRef);
-        expect(result).toBe(catastroImageService.getLocalImagePath(mockRef));
+        expect(result).toBe(catastroImageService.getLocalImagePath(mockRef, 'facade'));
         expect(buildFacadeImageUrl).toHaveBeenCalledWith(mockRef);
         expect(fs.writeFileSync).toHaveBeenCalled();
     });
 
     it('getOrDownloadFacadeImage cae a satélite si la fachada falla', async () => {
-        fs.existsSync.mockReturnValueOnce(false); // mock isCached
         buildFacadeImageUrl.mockResolvedValueOnce('http://facade.com/img.png');
         buildSatelliteImageUrl.mockResolvedValueOnce('http://satellite.com/img.png');
 
@@ -96,12 +102,11 @@ describe('CatastroImageService', () => {
         });
 
         const result = await catastroImageService.getOrDownloadFacadeImage(mockRef);
-        expect(result).toBe(catastroImageService.getLocalImagePath(mockRef));
+        expect(result).toBe(catastroImageService.getLocalImagePath(mockRef, 'facade'));
         expect(buildSatelliteImageUrl).toHaveBeenCalledWith(mockRef);
     });
 
     it('getOrDownloadFacadeImage cae a Unsplash si fachada y satélite fallan', async () => {
-        fs.existsSync.mockReturnValueOnce(false); // mock isCached
         buildFacadeImageUrl.mockResolvedValueOnce(null);
         buildSatelliteImageUrl.mockResolvedValueOnce(null);
 
@@ -111,6 +116,6 @@ describe('CatastroImageService', () => {
         });
 
         const result = await catastroImageService.getOrDownloadFacadeImage(mockRef);
-        expect(result).toBe(catastroImageService.getLocalImagePath(mockRef));
+        expect(result).toBe(catastroImageService.getLocalImagePath(mockRef, 'facade'));
     });
 });

@@ -6,10 +6,19 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-const { 
-    buildFacadeImageUrl, 
-    buildSatelliteImageUrl 
+const logger = require('../utils/logger');
+const {
+    buildFacadeImageUrl,
+    buildSatelliteImageUrl,
+    buildMapImageUrl
 } = require('./catastroService');
+
+const { CATASTRO } = require('../config/constants');
+
+const DOWNLOAD_TIMEOUT = CATASTRO.IMAGE.DOWNLOAD_TIMEOUT_MS;
+const FACADE_MIN_SIZE = CATASTRO.IMAGE.FACADE_MIN_SIZE_BYTES;
+const SATELLITE_MIN_SIZE = CATASTRO.IMAGE.SATELLITE_MIN_SIZE_BYTES;
+const FALLBACK_IMAGE_URL = CATASTRO.IMAGE.FALLBACK_URL;
 
 class CatastroImageService {
     /**
@@ -17,12 +26,12 @@ class CatastroImageService {
      * @param {Object} [httpClient] - Cliente HTTP para descargas.
      */
     constructor(
-        imagesDir = path.join(__dirname, '..', '..', 'public', 'images'), 
+        imagesDir = path.join(__dirname, '..', '..', 'public', 'images'),
         httpClient = axios
     ) {
         this.imagesDir = imagesDir;
         this.httpClient = httpClient;
-        
+
         this.ensureDirExists();
     }
 
@@ -38,20 +47,33 @@ class CatastroImageService {
 
     /**
      * Resuelve la ruta local absoluta para una referencia catastral.
+     * Soporta renombrado de archivos legados sin sufijo.
      * @param {string} refCatastral 
+     * @param {'facade'|'map'|'satellite'} type
      * @returns {string} Ruta absoluta del archivo local.
      */
-    getLocalImagePath(refCatastral) {
-        return path.join(this.imagesDir, `${refCatastral.toUpperCase()}.png`);
+    getLocalImagePath(refCatastral, type = 'facade') {
+        const legacyPath = path.join(this.imagesDir, `${refCatastral.toUpperCase()}.png`);
+        const newPath = path.join(this.imagesDir, `${refCatastral.toUpperCase()}_${type}.png`);
+        
+        if (type === 'facade' && fs.existsSync(legacyPath) && !fs.existsSync(newPath)) {
+            try {
+                fs.renameSync(legacyPath, newPath);
+            } catch (err) {
+                return legacyPath;
+            }
+        }
+        return newPath;
     }
 
     /**
      * Comprueba si una imagen ya está cacheada localmente.
      * @param {string} refCatastral 
+     * @param {'facade'|'map'|'satellite'} type
      * @returns {boolean} True si el archivo existe.
      */
-    isCached(refCatastral) {
-        const filePath = this.getLocalImagePath(refCatastral);
+    isCached(refCatastral, type = 'facade') {
+        const filePath = this.getLocalImagePath(refCatastral, type);
         return fs.existsSync(filePath);
     }
 
@@ -66,7 +88,7 @@ class CatastroImageService {
         try {
             const response = await this.httpClient.get(url, {
                 responseType: 'arraybuffer',
-                timeout: 5000
+                timeout: DOWNLOAD_TIMEOUT
             });
             if (response.data && response.data.length > minSize) {
                 fs.writeFileSync(targetPath, response.data);
@@ -74,49 +96,74 @@ class CatastroImageService {
             }
             return false;
         } catch (err) {
-            console.warn(`[CatastroImageService] Falló la descarga de ${url}:`, err.message);
+            logger.warn(`[CatastroImageService] Falló la descarga de ${url}: ${err.message}`);
             return false;
         }
     }
 
     /**
-     * Garantiza la obtención de la imagen de fachada local. Si no existe, la descarga.
-     * Implementa fallback en cascada: Fachada → Satélite → Imagen de reserva (Unsplash).
-     * @param {string} refCatastral - Referencia catastral validada.
-     * @returns {Promise<string>} Ruta absoluta al archivo listo para servir.
+     * Obtiene o descarga la imagen correspondiente al tipo solicitado.
+     * @param {string} refCatastral 
+     * @param {'facade'|'map'|'satellite'} type 
+     * @returns {Promise<string>} Ruta local al archivo cacheado.
      */
-    async getOrDownloadFacadeImage(refCatastral) {
-        const localPath = this.getLocalImagePath(refCatastral);
+    async getOrDownloadImage(refCatastral, type = 'facade') {
+        const localPath = this.getLocalImagePath(refCatastral, type);
 
-        // 1. Retornar si ya existe en caché
-        if (this.isCached(refCatastral)) {
+        if (this.isCached(refCatastral, type)) {
             return localPath;
         }
 
-        // 2. Intentar descargar foto de fachada
-        const facadeUrl = await buildFacadeImageUrl(refCatastral);
-        if (facadeUrl) {
-            const success = await this.downloadAndSave(facadeUrl, localPath, 5000);
-            if (success) return localPath;
+        if (type === 'facade') {
+            const facadeUrl = await buildFacadeImageUrl(refCatastral);
+            if (facadeUrl) {
+                const success = await this.downloadAndSave(facadeUrl, localPath, FACADE_MIN_SIZE);
+                if (success) return localPath;
+            }
+            // Fallback para fachada -> Satélite
+            const satUrl = await buildSatelliteImageUrl(refCatastral);
+            if (satUrl) {
+                const success = await this.downloadAndSave(satUrl, localPath, SATELLITE_MIN_SIZE);
+                if (success) return localPath;
+            }
+        } else if (type === 'map') {
+            const mapUrl = await buildMapImageUrl(refCatastral);
+            if (mapUrl) {
+                const success = await this.downloadAndSave(mapUrl, localPath, 1000);
+                if (success) return localPath;
+            }
+        } else if (type === 'satellite') {
+            const satUrl = await buildSatelliteImageUrl(refCatastral);
+            if (satUrl) {
+                const success = await this.downloadAndSave(satUrl, localPath, SATELLITE_MIN_SIZE);
+                if (success) return localPath;
+            }
         }
 
-        // 3. Fallback: Intentar descargar imagen satelital
-        const satUrl = await buildSatelliteImageUrl(refCatastral);
-        if (satUrl) {
-            const success = await this.downloadAndSave(satUrl, localPath, 1000);
-            if (success) return localPath;
-        }
-
-        // 4. Fallback final: Imagen genérica (Unsplash)
-        const fallbackUrl = "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=300";
-        const success = await this.downloadAndSave(fallbackUrl, localPath, 0);
+        // Fallback final: Imagen genérica (Unsplash)
+        const success = await this.downloadAndSave(FALLBACK_IMAGE_URL, localPath, 0);
         if (success) {
             return localPath;
         }
 
-        throw new Error('No se pudo descargar ninguna imagen para la referencia catastral.');
+        throw new Error(`No se pudo obtener la imagen del tipo ${type} para la referencia catastral.`);
+    }
+
+    /**
+     * Garantiza la obtención de la imagen de fachada local. Si no existe, la descarga.
+     * Mantenida para plena compatibilidad hacia atrás.
+     * @param {string} refCatastral - Referencia catastral validada.
+     * @returns {Promise<string>} Ruta absoluta al archivo listo para servir.
+     */
+    async getOrDownloadFacadeImage(refCatastral) {
+        return this.getOrDownloadImage(refCatastral, 'facade');
     }
 }
 
-// Instancia singleton por defecto
-module.exports = new CatastroImageService();
+const defaultInstance = new CatastroImageService();
+defaultInstance.createCatastroImageService = (imagesDir, httpClient) => {
+    return new CatastroImageService(imagesDir, httpClient);
+};
+defaultInstance.CatastroImageService = CatastroImageService;
+
+module.exports = defaultInstance;
