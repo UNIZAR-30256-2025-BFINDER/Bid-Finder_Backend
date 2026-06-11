@@ -59,7 +59,7 @@ class CatastroImageService {
         if (type === 'facade' && fs.existsSync(legacyPath) && !fs.existsSync(newPath)) {
             try {
                 fs.renameSync(legacyPath, newPath);
-            } catch (err) {
+            } catch {
                 return legacyPath;
             }
         }

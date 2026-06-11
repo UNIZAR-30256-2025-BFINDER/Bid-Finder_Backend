@@ -16,7 +16,7 @@ jest.mock('../../app_server/services/catastroService', () => ({
     buildMapImageUrl: jest.fn(),
 }));
 
-const { buildFacadeImageUrl, buildSatelliteImageUrl, buildMapImageUrl } = require('../../app_server/services/catastroService');
+const { buildFacadeImageUrl, buildSatelliteImageUrl } = require('../../app_server/services/catastroService');
 
 describe('CatastroImageService', () => {
     const mockRef = '7756103TP6075N0001LS';

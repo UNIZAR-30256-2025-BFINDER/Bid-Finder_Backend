@@ -33,7 +33,7 @@ describe('CatastralRef — Value Object', () => {
     });
 
     it('lanza TypeError si el valor no es string', () => {
-        expect(() => new CatastralRef(12345678901234567890)).toThrow(TypeError);
+        expect(() => new CatastralRef(12345)).toThrow(TypeError);
         expect(() => new CatastralRef(null)).toThrow(TypeError);
     });
 
