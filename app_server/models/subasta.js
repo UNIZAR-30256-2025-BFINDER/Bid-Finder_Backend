@@ -4,9 +4,10 @@
  */
 
 const mongoose = require("mongoose");
+const { SUBASTA } = require("../config/constants");
 
-const NIVEL_OPORTUNIDAD_PRIORIDAD = ["ALTO", "MEDIO", "BAJO"];
-const CATEGORIAS_PERMITIDAS = ["INMUEBLE", "VEHICULO", "MAQUINARIA", "OTROS"];
+const NIVEL_OPORTUNIDAD_PRIORIDAD = SUBASTA.NIVEL_OPORTUNIDAD_PRIORIDAD;
+const CATEGORIAS_PERMITIDAS = SUBASTA.CATEGORIAS_PERMITIDAS;
 
 const subastaSchema = new mongoose.Schema(
     {
@@ -50,7 +51,11 @@ const subastaSchema = new mongoose.Schema(
             type: Date,
             default: Date.now,
         },
-        // Datos específicos de la subasta/lote
+        fechaFinalizacion: {
+            type: Date,
+            default: null,
+            index: true,
+        },
         numero_lote: {
             type: Number,
             default: 1,
@@ -135,11 +140,6 @@ const subastaSchema = new mongoose.Schema(
         cargas_previas: {
             type: String,
             default: null,
-        },
-        fechaFinalizacion: {
-            type: Date,
-            default: null,
-            index: true,
         },
     },
     {

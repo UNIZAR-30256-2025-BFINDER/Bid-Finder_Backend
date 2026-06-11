@@ -1,37 +1,34 @@
 /**
  * @fileoverview Reglas de negocio específicas para la extracción y filtrado de Subastas del BOE.
+ * Respeta el principio de Responsabilidad Única (SRP) delegando tareas a extractores y mapeadores especializados.
  */
 
-/**
- * Extrae y concatena el texto contenido en los nodos de párrafo de un documento XML.
- * @param {Object} textoNode - Nodo de texto extraído del XML parseado.
- * @returns {string} Texto limpio y concatenado.
- */
-function extraerTextoDesdeTextoNode(textoNode) {
-    if (!textoNode) return "";
-    let parrafos = textoNode.p;
-    if (!parrafos) return "";
-    const arrayParrafos = Array.isArray(parrafos) ? parrafos : [parrafos];
-    return arrayParrafos
-        .map((p) => p["#text"] || "")
-        .filter((text) => text.trim() !== "")
-        .join("\n");
-}
+const { BOE } = require('./constants');
 
 /**
- * Objeto que encapsula las estrategias y reglas de filtrado para procesar subastas.
- * @namespace subastasRules
+ * Helper para extraer y limpiar textos de nodos de párrafo XML.
  */
-const subastasRules = {
+const XmlTextHelper = {
+    extraerTextoDesdeTextoNode(textoNode) {
+        if (!textoNode) return "";
+        let parrafos = textoNode.p;
+        if (!parrafos) return "";
+        const arrayParrafos = Array.isArray(parrafos) ? parrafos : [parrafos];
+        return arrayParrafos
+            .map((p) => p["#text"] || "")
+            .filter((text) => text.trim() !== "")
+            .join("\n");
+    }
+};
+
+/**
+ * Componente especializado en evaluar y extraer ítems desde el sumario diario del BOE.
+ */
+const SumarioExtractor = {
     /**
      * Evalúa si un ítem del BOE corresponde a una subasta válida basándose en su jerarquía.
-     * @param {Object} seccion - Nodo de sección del XML.
-     * @param {Object} departamento - Nodo de departamento del XML.
-     * @param {Object|null} epigrafe - Nodo de epígrafe del XML, si existe.
-     * @param {Object} item - Nodo del ítem a evaluar.
-     * @returns {boolean} True si cumple las condiciones de subasta, False en caso contrario.
      */
-    filterCondition: (seccion, departamento, epigrafe, item) => {
+    filterCondition(seccion, departamento, epigrafe, item) {
         const nombreSeccion = String(seccion['@_nombre'] || seccion.nombre || "").toUpperCase();
         if (!nombreSeccion.includes('ANUNCIOS')) return false;
 
@@ -46,19 +43,64 @@ const subastasRules = {
 
         return esTituloSubasta || esEpigrafeSubasta;
     },
-    
+
+    /**
+     * Estrategia de recorrido para extraer identificadores y URLs a partir del sumario diario del BOE.
+     */
+    extractSumarioStrategy(jsonObj) {
+        const itemsEncontrados = [];
+        const idsVistos = new Set();
+        const diario = jsonObj.response?.data?.sumario?.diario;
+        if (!diario || !diario.seccion) return itemsEncontrados;
+
+        const addItem = (item) => {
+            if (!idsVistos.has(item.identificador)) {
+                idsVistos.add(item.identificador);
+                itemsEncontrados.push({ id: item.identificador, titulo: item.titulo, urlXml: item.url_xml });
+            }
+        };
+
+        diario.seccion.forEach((seccion) => {
+            if (!seccion.departamento) return;
+            seccion.departamento.forEach((departamento) => {
+                if (departamento.item) {
+                    departamento.item.forEach((item) => {
+                        if (this.filterCondition(seccion, departamento, null, item)) {
+                            addItem(item);
+                        }
+                    });
+                }
+                if (departamento.epigrafe) {
+                    departamento.epigrafe.forEach((epigrafe) => {
+                        if (epigrafe.item) {
+                            epigrafe.item.forEach((item) => {
+                                if (this.filterCondition(seccion, departamento, epigrafe, item)) {
+                                    addItem(item);
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        });
+        return itemsEncontrados;
+    }
+};
+
+/**
+ * Componente especializado en mapear y transformar datos de anuncios individuales del BOE.
+ */
+const AnuncioMapper = {
     /**
      * Transforma un documento XML crudo en un objeto preliminar de Subasta.
      * Aplica filtros de descarte rápido (ej. enlaces huérfanos o vehículos).
-     * @param {Object} documento - Documento parseado del BOE.
-     * @returns {Object|null} Objeto subasta formateado, o null si es descartado por las reglas.
      */
-    mapFn: (documento) => {
+    mapFn(documento) {
         const metadatos = documento.metadatos || {};
-        const textoLimpio = extraerTextoDesdeTextoNode(documento.texto);
+        const textoLimpio = XmlTextHelper.extraerTextoDesdeTextoNode(documento.texto);
         const textoMayus = textoLimpio.toUpperCase();
         
-        const esEnlace = textoMayus.includes('HTTPS://SUBASTAS.BOE.ES') && textoLimpio.length < 600;
+        const esEnlace = textoMayus.includes(BOE.SUBASTAS_URL) && textoLimpio.length < BOE.ENLACE_MAX_LENGTH;
 
         if (esEnlace) {
             return null; 
@@ -81,64 +123,37 @@ const subastasRules = {
             urlPdf: metadatos.url_pdf || "",
             texto: textoLimpio,
             rawXml: rawXml,
-            // nuevos campos útiles para el frontend
             departamento: departamentoNombre,
             departamentoCodigo: departamentoCodigo,
         };
     },
 
     /**
-     * Estrategia de recorrido para extraer identificadores y URLs a partir del sumario diario del BOE.
-     * @param {Object} jsonObj - JSON resultante de parsear el XML del sumario.
-     * @returns {Array<{id: string, titulo: string, urlXml: string}>} Lista de ítems encontrados.
-     */
-    extractSumarioStrategy: (jsonObj) => {
-        const itemsEncontrados = [];
-        const diario = jsonObj.response?.data?.sumario?.diario;
-        if (!diario || !diario.seccion) return itemsEncontrados;
-
-        diario.seccion.forEach((seccion) => {
-            if (!seccion.departamento) return;
-            seccion.departamento.forEach((departamento) => {
-                if (departamento.item) {
-                    departamento.item.forEach((item) => {
-                        if (subastasRules.filterCondition(seccion, departamento, null, item)) {
-                            if (!itemsEncontrados.find((i) => i.id === item.identificador)) {
-                                itemsEncontrados.push({ id: item.identificador, titulo: item.titulo, urlXml: item.url_xml });
-                            }
-                        }
-                    });
-                }
-                if (departamento.epigrafe) {
-                    departamento.epigrafe.forEach((epigrafe) => {
-                        if (epigrafe.item) {
-                            epigrafe.item.forEach((item) => {
-                                if (subastasRules.filterCondition(seccion, departamento, epigrafe, item)) {
-                                    if (!itemsEncontrados.find((i) => i.id === item.identificador)) {
-                                        itemsEncontrados.push({ id: item.identificador, titulo: item.titulo, urlXml: item.url_xml });
-                                    }
-                                }
-                            });
-                        }
-                    });
-                }
-            });
-        });
-        return itemsEncontrados;
-    },
-
-    /**
      * Estrategia para extraer y validar los detalles de un anuncio individual.
-     * @param {Object} jsonObj - JSON resultante de parsear el XML del anuncio.
-     * @returns {Object|null} Datos procesados mediante mapFn.
-     * @throws {Error} Si el XML carece de la estructura mínima requerida.
      */
-    extractAnuncioStrategy: (jsonObj) => {
+    extractAnuncioStrategy(jsonObj) {
         const documento = jsonObj.documento;
         if (!documento) throw new Error("El XML proporcionado no tiene la etiqueta raíz <documento>.");
         if (!documento.metadatos || !documento.metadatos.identificador) throw new Error("No se ha encontrado el identificador único.");
-        return subastasRules.mapFn(documento);
+        return this.mapFn(documento);
     }
+};
+
+/**
+ * Fachada para mantener la compatibilidad hacia atrás con el resto de la aplicación.
+ */
+const subastasRules = {
+    filterCondition: (seccion, departamento, epigrafe, item) => 
+        SumarioExtractor.filterCondition(seccion, departamento, epigrafe, item),
+        
+    mapFn: (documento) => 
+        AnuncioMapper.mapFn(documento),
+        
+    extractSumarioStrategy: (jsonObj) => 
+        SumarioExtractor.extractSumarioStrategy(jsonObj),
+        
+    extractAnuncioStrategy: (jsonObj) => 
+        AnuncioMapper.extractAnuncioStrategy(jsonObj)
 };
 
 module.exports = subastasRules;

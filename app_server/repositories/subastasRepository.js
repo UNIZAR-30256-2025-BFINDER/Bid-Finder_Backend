@@ -56,6 +56,77 @@ function calculateDefaultFinalizacion(fechaPublicacion) {
     return null;
 }
 
+const FILTER_STRATEGIES = {
+    q: (val, query) => {
+        query.$text = { $search: val };
+    },
+    provincia: (val, query) => {
+        const regexProv = new RegExp(val, 'i');
+        const provOr = [
+            { zona: regexProv },
+            { direccion: regexProv }
+        ];
+        if (query.$or) {
+            query.$and = query.$and || [];
+            const existingOr = query.$or;
+            delete query.$or;
+            query.$and.push({ $or: existingOr });
+            query.$and.push({ $or: provOr });
+        } else {
+            query.$or = provOr;
+        }
+    },
+    categoria: (val, query) => {
+        const regexCat = new RegExp(val, 'i');
+        const catOr = [
+            { titulo_resumido: regexCat },
+            { resumen: regexCat },
+            { texto: regexCat }
+        ];
+        if (query.$or) {
+            query.$and = query.$and || [];
+            const existingOr = query.$or;
+            delete query.$or;
+            query.$and.push({ $or: existingOr });
+            query.$and.push({ $or: catOr });
+        } else if (query.$and) {
+            query.$and.push({ $or: catOr });
+        } else {
+            query.$or = catOr;
+        }
+    },
+    precio_min: (val, query) => {
+        const num = Number(val);
+        if (!isNaN(num)) {
+            query.precio_salida = query.precio_salida || { $ne: null };
+            query.precio_salida.$gte = num;
+        }
+    },
+    precio_max: (val, query) => {
+        const num = Number(val);
+        if (!isNaN(num)) {
+            query.precio_salida = query.precio_salida || { $ne: null };
+            query.precio_salida.$lte = num;
+        }
+    },
+    nivel_oportunidad: (val, query) => {
+        let viabilidadQuery = val.toUpperCase();
+        if (viabilidadQuery === 'ALTO') viabilidadQuery = 'ALTA';
+        if (viabilidadQuery === 'MEDIO') viabilidadQuery = 'MEDIA';
+        if (viabilidadQuery === 'BAJO') viabilidadQuery = 'BAJA';
+        if (['ALTA', 'MEDIA', 'BAJA'].includes(viabilidadQuery)) {
+            query.viabilidad = viabilidadQuery;
+        }
+    },
+    tipo_lote: (val, query) => {
+        if (val === 'multi') {
+            query.total_lotes = { $gt: 1 };
+        } else if (val === 'simple') {
+            query.total_lotes = 1;
+        }
+    }
+};
+
 /**
  * Crea una instancia del repositorio de subastas.
  * @returns {Object} Colección de métodos de acceso a datos y estadísticas.
@@ -96,64 +167,9 @@ function createSubastasRepository() {
     async function findAll(filtros = {}) {
         const query = { estado_ia: 'PROCESADO' };
 
-        // Full-Text Search
-        if (filtros.q) {
-            query.$text = { $search: filtros.q };
-        }
-
-        if (filtros.provincia) {
-            const regexProv = new RegExp(filtros.provincia, 'i');
-            query.$or = [
-                { zona: regexProv },
-                { direccion: regexProv }
-            ];
-        }
-
-        if (filtros.categoria) {
-            const regexCat = new RegExp(filtros.categoria, 'i');
-            const catOr = [
-                { titulo_resumido: regexCat },
-                { resumen: regexCat },
-                { texto: regexCat }
-            ];
-            if (query.$or) {
-                const provCondition = query.$or;
-                delete query.$or;
-                query.$and = [
-                    { $or: provCondition },
-                    { $or: catOr }
-                ];
-            } else {
-                query.$or = catOr;
-            }
-        }
-
-        if (filtros.precio_min || filtros.precio_max) {
-            const precioCond = {};
-            const precioMin = filtros.precio_min ? Number(filtros.precio_min) : undefined;
-            const precioMax = filtros.precio_max ? Number(filtros.precio_max) : undefined;
-            if (precioMin !== undefined && !isNaN(precioMin)) precioCond.$gte = precioMin;
-            if (precioMax !== undefined && !isNaN(precioMax)) precioCond.$lte = precioMax;
-            if (Object.keys(precioCond).length > 0) {
-                query.precio_salida = { ...precioCond, $ne: null };
-            }
-        }
-
-        if (filtros.nivel_oportunidad) {
-            let viabilidadQuery = filtros.nivel_oportunidad.toUpperCase();
-            if (viabilidadQuery === 'ALTO') viabilidadQuery = 'ALTA';
-            if (viabilidadQuery === 'MEDIO') viabilidadQuery = 'MEDIA';
-            if (viabilidadQuery === 'BAJO') viabilidadQuery = 'BAJA';
-            if (['ALTA', 'MEDIA', 'BAJA'].includes(viabilidadQuery)) {
-                query.viabilidad = viabilidadQuery;
-            }
-        }
-
-        if (filtros.tipo_lote) {
-            if (filtros.tipo_lote === 'multi') {
-                query.total_lotes = { $gt: 1 };
-            } else if (filtros.tipo_lote === 'simple') {
-                query.total_lotes = 1;
+        for (const [key, val] of Object.entries(filtros)) {
+            if (val !== undefined && val !== null && val !== '' && FILTER_STRATEGIES[key]) {
+                FILTER_STRATEGIES[key](val, query);
             }
         }
 
@@ -191,13 +207,14 @@ function createSubastasRepository() {
      */
     async function saveSubastas(anuncios) {
         const operations = anuncios.map((anuncio) => {
-            if (!anuncio.fechaFinalizacion && anuncio.fechaPublicacion) {
-                anuncio.fechaFinalizacion = calculateDefaultFinalizacion(anuncio.fechaPublicacion);
-            }
+            const docToSave = (!anuncio.fechaFinalizacion && anuncio.fechaPublicacion)
+                ? { ...anuncio, fechaFinalizacion: calculateDefaultFinalizacion(anuncio.fechaPublicacion) }
+                : { ...anuncio };
+
             return {
                 updateOne: {
-                    filter: { id: anuncio.id },
-                    update: { $set: anuncio },
+                    filter: { id: docToSave.id },
+                    update: { $set: docToSave },
                     upsert: true,
                 },
             };

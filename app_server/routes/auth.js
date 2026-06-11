@@ -4,14 +4,28 @@
  */
 
 const express = require('express');
-const router = express.Router();
 const createAuthController = require('../controllers/authController');
-const authService = require('../services/authService');
 
-const authController = createAuthController(authService);
+/**
+ * Fábrica para instanciar el router de autenticación con inyección de dependencias.
+ * @param {Object} authService - Servicio de autenticación.
+ * @returns {import('express').Router} Router de Express configurado.
+ */
+function createAuthRouter(authService) {
+    const router = express.Router();
+    const authController = createAuthController(authService);
 
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/refresh', authController.refreshToken);
+    router.post('/register', authController.register);
+    router.post('/login', authController.login);
+    router.post('/refresh', authController.refreshToken);
 
-module.exports = router;
+    return router;
+}
+
+// Dependencias por defecto para retrocompatibilidad
+const defaultAuthService = require('../services/authService');
+
+const defaultRouter = createAuthRouter(defaultAuthService);
+defaultRouter.createAuthRouter = createAuthRouter;
+
+module.exports = defaultRouter;

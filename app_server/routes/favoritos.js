@@ -3,31 +3,40 @@
  * Aplica el middleware `protect` de forma global a todo el router.
  */
 
-var express = require("express");
-var router = express.Router();
-
-const createSubastasRepository = require("../repositories/subastasRepository");
-const createSubastasService = require("../services/subastasService");
-const createUsuariosRepository = require("../repositories/usuariosRepository");
-const createFavoritosService = require("../services/favoritosService");
-const createFavoritosController = require("../controllers/favoritosController");
-
+const express = require("express");
 const { protect } = require("../middlewares/authMiddleware");
 const logger = require("../utils/logger");
+const createFavoritosController = require("../controllers/favoritosController");
+const createFavoritosService = require("../services/favoritosService");
 
-const subastasRepository = createSubastasRepository();
-const usuariosRepository = createUsuariosRepository();
+/**
+ * Fábrica para instanciar el router de favoritos con inyección de dependencias.
+ * @param {Object} favoritosService - Servicio de gestión de favoritos.
+ * @returns {import('express').Router} Router de Express configurado.
+ */
+function createFavoritosRouter(favoritosService) {
+    const router = express.Router();
+    const favoritosController = createFavoritosController(favoritosService, logger);
 
-const subastasService = createSubastasService(subastasRepository);
-const favoritosService = createFavoritosService(usuariosRepository, subastasService);
+    // Protege todas las rutas de este bloque exigiendo un JWT válido
+    router.use(protect);
 
-const favoritosController = createFavoritosController(favoritosService, logger);
+    router.get("/", favoritosController.listFavorites);
+    router.post("/:subastaId", favoritosController.addFavorite);
+    router.delete("/:subastaId", favoritosController.removeFavorite);
 
-// Protege todas las rutas de este bloque exigiendo un JWT válido
-router.use(protect);
+    return router;
+}
 
-router.get("/", favoritosController.listFavorites);
-router.post("/:subastaId", favoritosController.addFavorite);
-router.delete("/:subastaId", favoritosController.removeFavorite);
+// Dependencias por defecto para retrocompatibilidad
+const createSubastasRepository = require("../repositories/subastasRepository");
+const createUsuariosRepository = require("../repositories/usuariosRepository");
 
-module.exports = router;
+const defaultSubastasRepository = createSubastasRepository();
+const defaultUsuariosRepository = createUsuariosRepository();
+const defaultFavoritosService = createFavoritosService(defaultUsuariosRepository, defaultSubastasRepository);
+
+const defaultRouter = createFavoritosRouter(defaultFavoritosService);
+defaultRouter.createFavoritosRouter = createFavoritosRouter;
+
+module.exports = defaultRouter;

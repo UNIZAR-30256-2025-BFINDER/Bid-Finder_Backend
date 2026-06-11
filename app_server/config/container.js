@@ -11,6 +11,8 @@ const createBoeService         = require('../services/boeHttpService');
 const createIngestionController = require('../controllers/ingestionController');
 const xmlParserService         = require('../services/xmlParserService');
 const { createGeoCodingService } = require('../services/geoCodingService');
+const { createCatastroService } = require('../services/catastroService');
+const catastroImageService     = require('../services/catastroImageService');
 const logger                   = require('../utils/logger');
 const { BOE, INGESTION }       = require('./constants');
 const subastasRules            = require('./subastasRules');
@@ -42,6 +44,8 @@ function buildContainer() {
     const aiService  = createAiService(aiProviders, logger);
     const boeService = createBoeService(httpClient, BOE, logger);
     const geoCodingService = createGeoCodingService(httpClient);
+    const resolvedCatastroService = createCatastroService();
+    const resolvedCatastroImageService = catastroImageService.createCatastroImageService(undefined, httpClient);
 
     const ingestionController = createIngestionController(
         boeService,
@@ -57,6 +61,8 @@ function buildContainer() {
         aiService,
         boeService,
         geoCodingService,
+        catastroService: resolvedCatastroService,
+        catastroImageService: resolvedCatastroImageService,
         ingestionController,
         logger,
     };

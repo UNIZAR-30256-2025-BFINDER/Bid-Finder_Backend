@@ -7,6 +7,13 @@
  * @param {any} num - Valor a evaluar.
  * @returns {boolean} True si es un número real válido.
  */
+const { SUBASTA } = require('../config/constants');
+
+/**
+ * Valida si un valor numérico es apto para cálculos.
+ * @param {any} num - Valor a evaluar.
+ * @returns {boolean} True si es un número real válido.
+ */
 function esValorValido(num) {
     return num !== null && num !== undefined && !Number.isNaN(num);
 }
@@ -39,11 +46,11 @@ function calcularNivelOportunidad(precioSalida, valorTasacion) {
 
     const ratio = precioSalida / valorTasacion;
 
-    if (ratio < 0.5) {
+    if (ratio < SUBASTA.OPORTUNIDAD.RATIO_ALTO) {
         return 'ALTO';
     }
 
-    if (ratio <= 0.75) {
+    if (ratio <= SUBASTA.OPORTUNIDAD.RATIO_MEDIO) {
         return 'MEDIO';
     }
 

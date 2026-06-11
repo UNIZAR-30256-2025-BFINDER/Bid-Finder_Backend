@@ -22,6 +22,12 @@ describe('Dependency Injection Container', () => {
         
         expect(container).toHaveProperty('geoCodingService');
         expect(typeof container.geoCodingService).toBe('object');
+
+        expect(container).toHaveProperty('catastroService');
+        expect(typeof container.catastroService).toBe('object');
+
+        expect(container).toHaveProperty('catastroImageService');
+        expect(typeof container.catastroImageService).toBe('object');
         
         expect(container).toHaveProperty('ingestionController');
         expect(typeof container.ingestionController).toBe('object');

@@ -1,16 +1,12 @@
-/**
- * @fileoverview Servicio de geocodificación mediante Nominatim.
- * Transforma direcciones extraídas por la IA en coordenadas geográficas (Lat/Lon)
- * utilizando un sistema de fallback por municipio si la dirección exacta es ambigua.
- */
+const { GEO_CODING } = require('../config/constants');
 
 /**
  * Instancia el servicio de geocodificación inyectando el cliente HTTP.
  * @param {Object} httpClient - Cliente HTTP configurado para hacer peticiones externas.
- * @param {number} [delayMs=1000] - Retardo de cortesía para respetar las políticas de uso de OSM.
+ * @param {number} [delayMs=GEO_CODING.DELAY_MS] - Retardo de cortesía para respetar las políticas de uso de OSM.
  * @returns {Object} Servicio con la función principal de resolución de coordenadas.
  */
-function createGeoCodingService(httpClient, delayMs = 1000) {
+function createGeoCodingService(httpClient, delayMs = GEO_CODING.DELAY_MS) {
   if (!httpClient) throw new Error('httpClient es obligatorio');
 
   /**
@@ -42,7 +38,7 @@ function createGeoCodingService(httpClient, delayMs = 1000) {
    */
   async function getCoordinatesFromAddress(address, municipio) {
     const limpia = cleanAddress(address);
-    const pais = "España";
+    const pais = GEO_CODING.DEFAULT_COUNTRY;
     let firstRawResult = null;
     
     if (limpia && municipio) {
@@ -79,7 +75,7 @@ function createGeoCodingService(httpClient, delayMs = 1000) {
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
     
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+    const url = `${GEO_CODING.NOMINATIM_URL}?format=json&limit=1&q=${encodeURIComponent(query)}`;
     try {
       const response = await httpClient.get(url, { headers: { 'Accept-Language': 'es' } });
       const data = response.data;

@@ -45,9 +45,22 @@ describe("GET /api/v1/subastas/:id", () => {
     });
 });
 
+const jwt = require('jsonwebtoken');
+
 describe("DELETE /api/v1/subastas/purge-past", () => {
-    test("debe devolver 200 y el conteo de subastas purgadas", async () => {
+    test("debe devolver 401 si no hay token de autenticación", async () => {
         const response = await request(app).delete("/api/v1/subastas/purge-past");
+        expect(response.status).toBe(401);
+    });
+
+    test("debe devolver 200 con token de admin válido", async () => {
+        const token = jwt.sign(
+            { id: "admin-id-test", rol: "admin" },
+            process.env.JWT_SECRET || "test-secret"
+        );
+        const response = await request(app)
+            .delete("/api/v1/subastas/purge-past")
+            .set("Authorization", `Bearer ${token}`);
         expect(response.status).toBe(200);
         expect(response.body.status).toBe("success");
         expect(response.body.data.purgadas).toBe(10);

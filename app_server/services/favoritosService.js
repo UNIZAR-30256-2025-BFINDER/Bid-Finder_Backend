@@ -9,7 +9,7 @@
  * @param {Object} subastasService - Servicio para consultar la validez de los activos.
  * @returns {Object} Interfaz del servicio.
  */
-function createFavoritosService(usuariosRepository, subastasService) {
+function createFavoritosService(usuariosRepository, subastasRepository) {
 
     /**
      * Vincula un lote de subasta a la colección de favoritos del usuario.
@@ -19,7 +19,7 @@ function createFavoritosService(usuariosRepository, subastasService) {
      * @throws {Error} Si el lote no existe en la BD.
      */
     async function addFavorite(userId, loteId) {
-        const subasta = await subastasService.getSubastaById(loteId);
+        const subasta = await subastasRepository.findById(loteId);
         if (!subasta) {
             throw new Error("Subasta no encontrada");
         }
@@ -35,7 +35,7 @@ function createFavoritosService(usuariosRepository, subastasService) {
      * @throws {Error} Si el lote no existe.
      */
     async function removeFavorite(userId, loteId) {
-        const subasta = await subastasService.getSubastaById(loteId);
+        const subasta = await subastasRepository.findById(loteId);
         if (!subasta) {
             throw new Error("Subasta no encontrada");
         }
@@ -55,7 +55,7 @@ function createFavoritosService(usuariosRepository, subastasService) {
         const subastas = await Promise.all(
             ids.map(async (id) => {
                 try {
-                    return await subastasService.getSubastaById(id);
+                    return await subastasRepository.findById(id);
                 } catch {
                     return null;
                 }

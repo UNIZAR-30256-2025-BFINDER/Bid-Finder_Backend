@@ -1,137 +1,74 @@
 /**
  * @fileoverview Rutas de integración con el Catastro.
+ * Contiene únicamente las definiciones de endpoints y delega la ejecución de lógica al controlador.
  */
 
 const express = require('express');
-const router = express.Router();
-const {
-    buildFichaUrl,
-    getExtendedInfo,
-    buildMapImageUrl,
-    buildSatelliteImageUrl,
-    CatastralRef,
-} = require('../services/catastroService');
-const catastroImageService = require('../services/catastroImageService');
+const logger = require('../utils/logger');
+const createCatastroController = require('../controllers/catastroController');
 
 /**
- * GET /api/v1/catastro/ficha/:refCatastral
- * Redirige al usuario a la ficha de la sede oficial del Catastro.
+ * Crea y configura el enrutador de Catastro con las dependencias inyectadas.
+ * @param {Object} catastroService - Servicio de consultas al catastro.
+ * @param {Object} catastroImageService - Servicio de descarga/caché de imágenes del catastro.
+ * @returns {import('express').Router} El router de express configurado.
  */
-router.get('/ficha/:refCatastral', async (req, res) => {
-    try {
-        const { refCatastral } = req.params;
-        const ref = new CatastralRef(refCatastral || '');
+function createCatastroRouter(catastroService, catastroImageService) {
+    const router = express.Router();
+    const controller = createCatastroController(catastroService, catastroImageService, logger);
 
-        const url = await buildFichaUrl(ref.getFull());
-        if (!url) {
-            return res.status(404).json({
-                error: 'No se pudo resolver la referencia catastral en el Catastro.',
-            });
-        }
+    /**
+     * @openapi
+     * /catastro/ficha/{refCatastral}:
+     *   get:
+     *     summary: Redirige a la Ficha Oficial del Catastro
+     *     tags: [Catastro]
+     */
+    router.get('/ficha/:refCatastral', controller.getFicha);
 
-        return res.redirect(url);
-    } catch (error) {
-        if (error instanceof TypeError || error.message.includes('Referencia catastral inválida')) {
-            return res.status(400).json({ error: error.message });
-        }
-        console.error('[CatastroRoute] Error en ficha:', error.message);
-        return res.status(500).json({ error: 'Error al consultar la ficha del Catastro.' });
-    }
-});
+    /**
+     * @openapi
+     * /catastro/info/{refCatastral}:
+     *   get:
+     *     summary: Obtiene información catastral extendida en formato JSON
+     *     tags: [Catastro]
+     */
+    router.get('/info/:refCatastral', controller.getInfo);
 
-/**
- * GET /api/v1/catastro/info/:refCatastral
- * Devuelve datos catastrales extendidos en formato JSON.
- */
-router.get('/info/:refCatastral', async (req, res) => {
-    try {
-        const { refCatastral } = req.params;
-        const ref = new CatastralRef(refCatastral || '');
+    /**
+     * @openapi
+     * /catastro/imagen/{refCatastral}:
+     *   get:
+     *     summary: Redirige al mapa de la parcela catastral (WMS)
+     *     tags: [Catastro]
+     */
+    router.get('/imagen/:refCatastral', controller.getImagen);
 
-        const data = await getExtendedInfo(ref.getFull());
-        if (!data) {
-            return res.status(404).json({
-                error: 'No se pudieron recuperar datos para la referencia catastral.',
-            });
-        }
+    /**
+     * @openapi
+     * /catastro/satelite/{refCatastral}:
+     *   get:
+     *     summary: Redirige a la ortofotografía satelital (PNOA)
+     *     tags: [Catastro]
+     */
+    router.get('/satelite/:refCatastral', controller.getSatelite);
 
-        return res.json(data);
-    } catch (error) {
-        if (error instanceof TypeError || error.message.includes('Referencia catastral inválida')) {
-            return res.status(400).json({ error: error.message });
-        }
-        console.error('[CatastroRoute] Error en info:', error.message);
-        return res.status(500).json({ error: 'Error al obtener información del Catastro.' });
-    }
-});
+    /**
+     * @openapi
+     * /catastro/fachada/{refCatastral}:
+     *   get:
+     *     summary: Retorna la imagen de la fachada (local o descargada)
+     *     tags: [Catastro]
+     */
+    router.get('/fachada/:refCatastral', controller.getFachada);
 
-/**
- * GET /api/v1/catastro/imagen/:refCatastral
- * Redirige a la imagen WMS de la parcela catastral.
- */
-router.get('/imagen/:refCatastral', async (req, res) => {
-    try {
-        const { refCatastral } = req.params;
-        const ref = new CatastralRef(refCatastral || '');
+    return router;
+}
 
-        const imageUrl = await buildMapImageUrl(ref.getFull());
-        if (!imageUrl) {
-            return res.status(404).json({
-                error: 'No se pudieron obtener coordenadas o plano para la parcela catastral.',
-            });
-        }
+const defaultCatastroService = require('../services/catastroService');
+const defaultCatastroImageService = require('../services/catastroImageService');
 
-        return res.redirect(imageUrl);
-    } catch (error) {
-        if (error instanceof TypeError || error.message.includes('Referencia catastral inválida')) {
-            return res.status(400).json({ error: error.message });
-        }
-        console.error('[CatastroRoute] Error en imagen:', error.message);
-        return res.status(500).json({ error: 'Error al obtener la imagen de la parcela.' });
-    }
-});
+const defaultRouter = createCatastroRouter(defaultCatastroService, defaultCatastroImageService);
+defaultRouter.createCatastroRouter = createCatastroRouter;
 
-/**
- * GET /api/v1/catastro/satelite/:refCatastral
- * Redirige a la imagen satélite (ortofoto PNOA) de la parcela catastral.
- */
-router.get('/satelite/:refCatastral', async (req, res) => {
-    try {
-        const { refCatastral } = req.params;
-        const ref = new CatastralRef(refCatastral || '');
-
-        const imageUrl = await buildSatelliteImageUrl(ref.getFull());
-        if (!imageUrl) {
-            return res.status(404).json({
-                error: 'No se pudieron obtener coordenadas o foto satélite para la parcela catastral.',
-            });
-        }
-
-        return res.redirect(imageUrl);
-    } catch (error) {
-        if (error instanceof TypeError || error.message.includes('Referencia catastral inválida')) {
-            return res.status(400).json({ error: error.message });
-        }
-        console.error('[CatastroRoute] Error en satelite:', error.message);
-        return res.status(500).json({ error: 'Error al obtener la imagen satélite.' });
-    }
-});
-
-router.get('/fachada/:refCatastral', async (req, res) => {
-    try {
-        const { refCatastral } = req.params;
-        const ref = new CatastralRef(refCatastral || '');
-        const fullRef = ref.getFull();
-        
-        const localPath = await catastroImageService.getOrDownloadFacadeImage(fullRef);
-        return res.sendFile(localPath);
-    } catch (error) {
-        if (error instanceof TypeError || error.message.includes('Referencia catastral inválida')) {
-            return res.status(400).json({ error: error.message });
-        }
-        console.error('[CatastroRoute] Error en fachada:', error.message);
-        return res.status(500).json({ error: 'Error al obtener la fachada del inmueble.' });
-    }
-});
-
-module.exports = router;
+module.exports = defaultRouter;

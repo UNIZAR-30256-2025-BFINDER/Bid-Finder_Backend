@@ -142,7 +142,67 @@ function createUsuariosRepository() {
         };
     }
 
-    return { addFavorito, removeFavorito, getFavoritos, findAll };
+    /**
+     * Busca un usuario por su dirección de correo electrónico.
+     * @param {string} email - Correo a buscar.
+     * @param {boolean} [selectPassword=false] - Indica si se debe incluir la contraseña (sensible).
+     * @returns {Promise<Object|null>} Documento de usuario o null.
+     */
+    async function findByEmail(email, selectPassword = false) {
+        let query = Usuario.findOne({ email });
+        if (selectPassword) {
+            query = query.select('+password');
+        }
+        return await query;
+    }
+
+    /**
+     * Crea un nuevo documento de usuario en la base de datos.
+     * @param {Object} datosUsuario - Datos para registrar ({ nombre, email, password }).
+     * @returns {Promise<Object>} Documento de usuario creado.
+     */
+    async function create(datosUsuario) {
+        return await Usuario.create(datosUsuario);
+    }
+
+    /**
+     * Busca un usuario por su ID interno de MongoDB.
+     * @param {string} id - ID único del usuario.
+     * @param {boolean} [selectRefreshToken=false] - Indica si se debe incluir el refresh token.
+     * @returns {Promise<Object|null>} Documento de usuario o null.
+     */
+    async function findById(id, selectRefreshToken = false) {
+        let query = Usuario.findById(id);
+        if (selectRefreshToken) {
+            query = query.select('+refreshToken');
+        }
+        return await query;
+    }
+
+    /**
+     * Actualiza el token de refresco (Refresh Token) asignado a un usuario.
+     * @param {string} id - ID único del usuario.
+     * @param {string|null} token - Token de refresco o null para revocar.
+     * @returns {Promise<Object>} Documento de usuario actualizado.
+     */
+    async function updateRefreshToken(id, token) {
+        return await Usuario.findByIdAndUpdate(
+            id,
+            { refreshToken: token },
+            { new: true }
+        );
+    }
+
+    return { 
+        addFavorito, 
+        removeFavorito, 
+        getFavoritos, 
+        findAll,
+        findByEmail,
+        create,
+        findById,
+        updateRefreshToken
+    };
 }
 
 module.exports = createUsuariosRepository;
