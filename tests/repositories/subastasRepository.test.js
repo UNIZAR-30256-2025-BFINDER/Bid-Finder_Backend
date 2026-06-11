@@ -133,6 +133,29 @@ describe("subastasRepository - findAll con filtros", () => {
         
         expect(results.length).toBe(3); 
     });
+
+    it("debe filtrar por provincia y categoría de manera combinada (combinaciones de $or y $and)", async () => {
+        const results = await subastasRepository.findAll({
+            provincia: "Madrid",
+            categoria: "comercial"
+        });
+        expect(results.length).toBe(1);
+        expect(results[0].id).toBe("BOE-FILTRO-1__L1");
+    });
+
+    it("debe filtrar por tipo de lote simple y multi", async () => {
+        const simpleLotes = await subastasRepository.findAll({ tipo_lote: "simple" });
+        expect(simpleLotes.length).toBe(3); // Prueba 1, 2 y 3 son de total_lotes 1
+
+        const multiLotes = await subastasRepository.findAll({ tipo_lote: "multi" });
+        expect(multiLotes.length).toBe(0); // Ninguno en el set es multi
+    });
+
+    it("debe buscar por texto libre (q) usando score de texto", async () => {
+        const results = await subastasRepository.findAll({ q: "finca" });
+        expect(results.length).toBe(1);
+        expect(results[0].texto).toContain("Finca");
+    });
 });
 
 describe("subastasRepository - Operaciones Especiales y Agregaciones", () => {
@@ -281,5 +304,40 @@ describe("subastasRepository - Operaciones Especiales y Agregaciones", () => {
         const stats = await subastasRepository.getSystemStats();
         expect(stats).toHaveProperty("ingresadasHoy");
         expect(stats).toHaveProperty("ultimaIngesta");
+    });
+});
+
+describe("subastasRepository - Edge Cases y Métodos Auxiliares", () => {
+    it("debe compilar IDs compuestos y parsearlos correctamente", () => {
+        const idCompuesto = subastasRepository.buildLoteId("BOE-12345", 3);
+        expect(idCompuesto).toBe("BOE-12345__L3");
+
+        const parsed = subastasRepository.parseLoteId("BOE-12345__L3");
+        expect(parsed).toEqual({ anuncioId: "BOE-12345", numeroSubasta: 3 });
+
+        const parsedSimple = subastasRepository.parseLoteId("BOE-12345");
+        expect(parsedSimple).toEqual({ anuncioId: "BOE-12345", numeroSubasta: 1 });
+    });
+
+    it("debe devolver null en updateAIExtraction si el anuncio original no existe", async () => {
+        const result = await subastasRepository.updateAIExtraction("ID-INEXISTENTE", []);
+        expect(result).toBeNull();
+    });
+
+    it("debe actualizar a estado ERROR/PROCESADO con total_lotes 0 si la extracción IA falla o no tiene lotes", async () => {
+        // Creamos pendiente
+        await Subasta.create({
+            id: "BOE-AI-FALLIDA",
+            estado_ia: "PENDIENTE",
+            fechaPublicacion: "20260101",
+            titulo: "Pendiente IA",
+            urlPdf: "/x.pdf",
+            texto: "txt",
+            rawXml: "<x/>"
+        });
+
+        const updatedError = await subastasRepository.updateAIExtraction("BOE-AI-FALLIDA", [], "ERROR");
+        expect(updatedError.estado_ia).toBe("ERROR");
+        expect(updatedError.total_lotes).toBe(0);
     });
 });
