@@ -13,14 +13,15 @@ const {
     CatastralRef,
     DelegacionMapper,
     CatastroService,
+    createCatastroService,
 } = require('../../app_server/services/catastroService');
 
 // ─────────────────────────────────────────────────────────────
 // CatastralRef — Value Object
 // ─────────────────────────────────────────────────────────────
 describe('CatastralRef — Value Object', () => {
-    const RC_URBANA   = '1234567AB1234A0001ZZ';
-    const RC_RUSTICA  = '12345A123456789012ZZ'; // empieza con 5 dígitos + letra
+    const RC_URBANA = '1234567AB1234A0001ZZ';
+    const RC_RUSTICA = '12345A123456789012ZZ'; // empieza con 5 dígitos + letra
 
     it('acepta una referencia catastral válida de 20 caracteres', () => {
         const ref = new CatastralRef(RC_URBANA);
@@ -48,7 +49,7 @@ describe('CatastralRef — Value Object', () => {
     });
 
     it('isRustico() detecta referencias rústicas correctamente', () => {
-        const urbana  = new CatastralRef(RC_URBANA);
+        const urbana = new CatastralRef(RC_URBANA);
         const rustica = new CatastralRef(RC_RUSTICA);
         expect(urbana.isRustico()).toBe(false);
         expect(rustica.isRustico()).toBe(true);
@@ -191,5 +192,182 @@ describe('CatastroService.buildFacadeImageUrl', () => {
     it('devuelve null si la referencia catastral es inválida', async () => {
         const url = await service.buildFacadeImageUrl('CORTA');
         expect(url).toBeNull();
+    });
+});
+
+describe('CatastroService — Parseo de XML y Flujos de Servicio', () => {
+    let mockClient;
+    let service;
+
+    beforeEach(() => {
+        mockClient = {
+            fetchLocationData: jest.fn(),
+            fetchCoordinates: jest.fn(),
+            fetchWfsParcel: jest.fn(),
+        };
+        service = createCatastroService(mockClient);
+        CatastroData.findOne = jest.fn().mockResolvedValue(null);
+        CatastroData.findOneAndUpdate = jest.fn().mockImplementation(() => ({
+            catch: jest.fn()
+        }));
+    });
+
+    describe('resolverDelMun', () => {
+        it('debe resolver del, mun y urbRus correctamente con un XML válido', async () => {
+            const fakeXml = '<xml><cp>28</cp><cmc>79</cmc></xml>';
+            mockClient.fetchLocationData.mockResolvedValue(fakeXml);
+
+            const result = await service.resolverDelMun('1234567AB1234A0001ZZ');
+
+            expect(mockClient.fetchLocationData).toHaveBeenCalledWith('1234567AB1234A');
+            expect(result).toEqual({
+                del: '28',
+                mun: '79',
+                urbRus: 'U'
+            });
+        });
+
+        it('debe retornar null si la regex de cp o cmc no coincide', async () => {
+            const fakeXml = '<xml><cp>28</cp></xml>'; // falta cmc
+            mockClient.fetchLocationData.mockResolvedValue(fakeXml);
+
+            const result = await service.resolverDelMun('1234567AB1234A0001ZZ');
+            expect(result).toBeNull();
+        });
+
+        it('debe retornar null y logear el error si ocurre una excepción inesperada', async () => {
+            mockClient.fetchLocationData.mockRejectedValue(new Error('API Down'));
+
+            const result = await service.resolverDelMun('1234567AB1234A0001ZZ');
+            expect(result).toBeNull();
+        });
+    });
+
+    describe('buildFichaUrl', () => {
+        it('debe retornar la URL de la ficha si resolverDelMun tiene éxito', async () => {
+            const fakeXml = '<xml><cp>28</cp><cmc>79</cmc></xml>';
+            mockClient.fetchLocationData.mockResolvedValue(fakeXml);
+
+            const url = await service.buildFichaUrl('1234567AB1234A0001ZZ');
+            expect(url).toContain('CYCBienInmueble/OVCConCiud.aspx');
+            expect(url).toContain('del=28');
+            expect(url).toContain('mun=79');
+        });
+
+        it('debe retornar null si resolverDelMun falla', async () => {
+            mockClient.fetchLocationData.mockResolvedValue('<xml></xml>');
+
+            const url = await service.buildFichaUrl('1234567AB1234A0001ZZ');
+            expect(url).toBeNull();
+        });
+    });
+
+    describe('getExtendedInfo - Parseo completo de atributos urbanos', () => {
+        it('debe retornar el objeto con todos los datos urbanos parseados correctamente', async () => {
+            const basicXml = `
+                <xml>
+                    <cn>UR</cn>
+                    <luso>Residencial</luso>
+                    <sfc>120</sfc>
+                    <ant>2005</ant>
+                    <ldt>Calle Falsa 123</ldt>
+                    <cpt>100</cpt>
+                </xml>
+            `;
+            const coordXml = `
+                <xml>
+                    <xcen>-3.7038</xcen>
+                    <ycen>40.4168</ycen>
+                </xml>
+            `;
+            const wfsXml = `
+                <xml>
+                    <cp:areaValue>350</cp:areaValue>
+                </xml>
+            `;
+
+            mockClient.fetchLocationData.mockResolvedValue(basicXml);
+            mockClient.fetchCoordinates.mockResolvedValue(coordXml);
+            mockClient.fetchWfsParcel.mockResolvedValue(wfsXml);
+
+            const result = await service.getExtendedInfo('1234567AB1234A0001ZZ');
+
+            expect(result.clase).toBe('Urbano');
+            expect(result.usoPrincipal).toBe('Residencial');
+            expect(result.superficieConstruida).toBe(120);
+            expect(result.superficieGrafica).toBe(350);
+            expect(result.anoConstruccion).toBe(2005);
+            expect(result.direccion).toBe('Calle Falsa 123');
+            expect(result.coordenadas).toEqual({ lat: 40.4168, lng: -3.7038 });
+            expect(result.participacion).toBe('100');
+        });
+
+        it('debe retornar superficieGrafica usando subparcelas como fallback si la parcela es rustica y falla WFS', async () => {
+            // Referencia rústica (empieza por 5 números + letra)
+            const rusticaRef = '37014A502001690000BP';
+            const basicXml = `
+                <xml>
+                    <cn>RU</cn>
+                    <ssp>150</ssp>
+                    <ssp>250</ssp>
+                </xml>
+            `;
+            mockClient.fetchLocationData.mockResolvedValue(basicXml);
+            mockClient.fetchCoordinates.mockRejectedValue(new Error('Coord timeout'));
+            mockClient.fetchWfsParcel.mockRejectedValue(new Error('WFS error'));
+
+            const result = await service.getExtendedInfo(rusticaRef);
+
+            expect(result.clase).toBe('Rústico');
+            expect(result.superficieGrafica).toBe(400); // 150 + 250
+            expect(result.coordenadas).toBeNull();
+        });
+
+        it('debe registrar y continuar si falla la base de datos al guardar en caché', async () => {
+            const basicXml = '<xml><cn>UR</cn></xml>';
+            mockClient.fetchLocationData.mockResolvedValue(basicXml);
+            mockClient.fetchCoordinates.mockRejectedValue(new Error('Error'));
+            mockClient.fetchWfsParcel.mockRejectedValue(new Error('Error'));
+
+            // Simular fallo en FindOneAndUpdate.catch
+            let caughtCallback;
+            CatastroData.findOneAndUpdate = jest.fn().mockImplementation(() => ({
+                catch: jest.fn(cb => {
+                    caughtCallback = cb;
+                })
+            }));
+
+            const result = await service.getExtendedInfo('1234567AB1234A0001ZZ');
+            expect(result).toBeDefined();
+
+            // Ejecutamos el callback del catch del findOneAndUpdate
+            expect(caughtCallback).toBeDefined();
+            caughtCallback(new Error('DB write failed'));
+        });
+    });
+
+    describe('buildMapImageUrl & buildSatelliteImageUrl', () => {
+        it('debe construir la URL WMS del plano si el inmueble tiene coordenadas', async () => {
+            const cachedInfo = {
+                referenciaCatastral: '1234567AB1234A0001ZZ',
+                coordenadas: { lat: 40.4168, lng: -3.7038 }
+            };
+            CatastroData.findOne = jest.fn().mockResolvedValue(cachedInfo);
+
+            const mapUrl = await service.buildMapImageUrl('1234567AB1234A0001ZZ');
+            const satUrl = await service.buildSatelliteImageUrl('1234567AB1234A0001ZZ');
+
+            expect(mapUrl).toContain('cartografia/INSPIRE/spadgcwms.aspx');
+            expect(mapUrl).toContain('BBOX=');
+            expect(satUrl).toContain('ign.es/wms-inspire/pnoa-ma');
+        });
+
+        it('debe retornar null si el inmueble no tiene coordenadas o getExtendedInfo falla', async () => {
+            CatastroData.findOne = jest.fn().mockResolvedValue(null);
+            mockClient.fetchLocationData.mockRejectedValue(new Error('API error'));
+
+            const mapUrl = await service.buildMapImageUrl('1234567AB1234A0001ZZ');
+            expect(mapUrl).toBeNull();
+        });
     });
 });
