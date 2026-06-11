@@ -78,6 +78,19 @@ describe('CatastroController', () => {
                 error: expect.stringContaining('Referencia catastral inválida')
             });
         });
+
+        it('debe retornar 500 si ocurre un error inesperado', async () => {
+            req.params.refCatastral = '1234567AB1234A0001ZZ';
+            mockCatastroService.buildFichaUrl.mockRejectedValue(new Error('Explosión inesperada'));
+
+            await controller.getFicha(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({
+                error: 'Error al consultar la ficha del Catastro.'
+            });
+            expect(mockLogger.error).toHaveBeenCalled();
+        });
     });
 
     describe('getInfo', () => {
@@ -100,6 +113,30 @@ describe('CatastroController', () => {
 
             expect(res.status).toHaveBeenCalledWith(404);
         });
+
+        it('debe retornar 400 si la referencia catastral es inválida', async () => {
+            req.params.refCatastral = 'INVALIDA';
+
+            await controller.getInfo(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({
+                error: expect.stringContaining('Referencia catastral inválida')
+            });
+        });
+
+        it('debe retornar 500 si ocurre un error inesperado', async () => {
+            req.params.refCatastral = '1234567AB1234A0001ZZ';
+            mockCatastroService.getExtendedInfo.mockRejectedValue(new Error('Crash'));
+
+            await controller.getInfo(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({
+                error: 'Error al obtener información del Catastro.'
+            });
+            expect(mockLogger.error).toHaveBeenCalled();
+        });
     });
 
     describe('getImagen', () => {
@@ -111,6 +148,30 @@ describe('CatastroController', () => {
 
             expect(mockCatastroImageService.getOrDownloadImage).toHaveBeenCalledWith('1234567AB1234A0001ZZ', 'map');
             expect(res.sendFile).toHaveBeenCalledWith('/path/to/map.png');
+        });
+
+        it('debe retornar 400 si la referencia catastral es inválida', async () => {
+            req.params.refCatastral = 'CORTA';
+
+            await controller.getImagen(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({
+                error: expect.stringContaining('Referencia catastral inválida')
+            });
+        });
+
+        it('debe retornar 500 si ocurre un error inesperado', async () => {
+            req.params.refCatastral = '1234567AB1234A0001ZZ';
+            mockCatastroImageService.getOrDownloadImage.mockRejectedValue(new Error('Error de plano'));
+
+            await controller.getImagen(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({
+                error: 'Error al obtener la imagen de la parcela.'
+            });
+            expect(mockLogger.error).toHaveBeenCalled();
         });
     });
 
@@ -124,6 +185,27 @@ describe('CatastroController', () => {
             expect(mockCatastroImageService.getOrDownloadImage).toHaveBeenCalledWith('1234567AB1234A0001ZZ', 'satellite');
             expect(res.sendFile).toHaveBeenCalledWith('/path/to/satellite.png');
         });
+
+        it('debe retornar 400 si la referencia catastral es inválida', async () => {
+            req.params.refCatastral = 'CORTA';
+
+            await controller.getSatelite(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+        });
+
+        it('debe retornar 500 si ocurre un error inesperado', async () => {
+            req.params.refCatastral = '1234567AB1234A0001ZZ';
+            mockCatastroImageService.getOrDownloadImage.mockRejectedValue(new Error('Error de satelite'));
+
+            await controller.getSatelite(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({
+                error: 'Error al obtener la imagen satélite.'
+            });
+            expect(mockLogger.error).toHaveBeenCalled();
+        });
     });
 
     describe('getFachada', () => {
@@ -135,6 +217,27 @@ describe('CatastroController', () => {
 
             expect(mockCatastroImageService.getOrDownloadFacadeImage).toHaveBeenCalledWith('1234567AB1234A0001ZZ');
             expect(res.sendFile).toHaveBeenCalledWith('/path/to/facade.png');
+        });
+
+        it('debe retornar 400 si la referencia catastral es inválida', async () => {
+            req.params.refCatastral = 'CORTA';
+
+            await controller.getFachada(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+        });
+
+        it('debe retornar 500 si ocurre un error inesperado', async () => {
+            req.params.refCatastral = '1234567AB1234A0001ZZ';
+            mockCatastroImageService.getOrDownloadFacadeImage.mockRejectedValue(new Error('Error de fachada'));
+
+            await controller.getFachada(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({
+                error: 'Error al obtener la fachada del inmueble.'
+            });
+            expect(mockLogger.error).toHaveBeenCalled();
         });
     });
 });
