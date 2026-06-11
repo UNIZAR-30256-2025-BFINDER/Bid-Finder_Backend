@@ -3,16 +3,16 @@
  */
 
 const { MongoMemoryServer } = require('mongodb-memory-server');
-const mongoose              = require('mongoose');
-const Subasta               = require('../../app_server/models/subasta');
+const mongoose = require('mongoose');
+const Subasta = require('../../app_server/models/subasta');
 
 jest.mock('../../app_server/config/database', () => jest.fn().mockResolvedValue());
 
 const { runWorker } = require('../../app_server/jobs/aiWorkerJob');
 
 const mockLogger = {
-    info:  jest.fn(),
-    warn:  jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
 };
@@ -44,18 +44,18 @@ afterAll(async () => {
 const createSubastasRepository = require('../../app_server/repositories/subastasRepository');
 const subastasRepository = createSubastasRepository();
 
-const deps = { 
-    subastasRepository, 
-    aiService: mockAiService, 
+const deps = {
+    subastasRepository,
+    aiService: mockAiService,
     logger: mockLogger,
-    geoCodingService: mockGeoCodingService 
+    geoCodingService: mockGeoCodingService
 };
 
 describe('AI Worker — test de integración (multi-subasta)', () => {
     beforeEach(async () => {
         await Subasta.deleteMany({});
         mockExtraer.mockClear();
-        mockGeoCodingService.getCoordinatesFromAddress.mockClear(); 
+        mockGeoCodingService.getCoordinatesFromAddress.mockClear();
     });
 
     it('debería procesar un anuncio PENDIENTE con una sola subasta', async () => {
@@ -69,7 +69,6 @@ describe('AI Worker — test de integración (multi-subasta)', () => {
             rawXml: '<test></test>',
         });
 
-        // AI now returns { subastas: [...] } or { lotes: [...] } format
         mockExtraer.mockResolvedValue({
             subastas: [{
                 numero_lote: 1,
@@ -162,4 +161,47 @@ describe('AI Worker — test de integración (multi-subasta)', () => {
             expect.stringContaining('Límite de cuota')
         );
     });
+
+    it('debería retornar 0 si la cola de pendientes está vacía', async () => {
+        await runWorker(deps);
+        expect(mockLogger.info).toHaveBeenCalledWith(
+            expect.stringContaining('Cola vacía')
+        );
+    });
+
+    it('debería hacer sleep entre iteraciones si hay múltiples pendientes', async () => {
+        await Subasta.create([
+            { id: 'TEST-SLEEP-1', titulo: 'S1', texto: 'T1', estado_ia: 'PENDIENTE', fechaPublicacion: "20260329", urlPdf: '/1.pdf', rawXml: '<x/>' },
+            { id: 'TEST-SLEEP-2', titulo: 'S2', texto: 'T2', estado_ia: 'PENDIENTE', fechaPublicacion: "20260329", urlPdf: '/2.pdf', rawXml: '<x/>' }
+        ]);
+
+        mockExtraer.mockResolvedValue({ subastas: [] });
+
+        // Probamos que se llama sin errores y pasa por sleep sin fallar
+        await runWorker(deps);
+        expect(mockExtraer).toHaveBeenCalledTimes(2);
+    });
+
+    it('debe ejecutarse desde CLI correctamente', async () => {
+        const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => { });
+        global.__TEST_CLI__ = true;
+
+        jest.isolateModules(() => {
+            require('../../app_server/jobs/aiWorkerJob');
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(mockExit).toHaveBeenCalledWith(0);
+
+        delete global.__TEST_CLI__;
+        mockExit.mockRestore();
+    });
 });
+
+jest.mock('../../app_server/config/container', () => () => ({
+    logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    subastasRepository: { findPendingAI: jest.fn().mockResolvedValue([]) },
+    aiService: {},
+    geoCodingService: {}
+}));

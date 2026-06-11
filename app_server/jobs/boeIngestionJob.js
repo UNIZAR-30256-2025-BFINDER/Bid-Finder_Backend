@@ -48,7 +48,7 @@ async function runIngestion(deps, executionDate = new Date()) {
 }
 
 // Ejecución directa si se invoca desde CLI
-if (require.main === module) {
+if (require.main === module || global.__TEST_CLI__) {
     const buildContainer = require('../config/container');
     const deps = buildContainer();
 
