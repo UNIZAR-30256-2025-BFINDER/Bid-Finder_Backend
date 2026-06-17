@@ -1,6 +1,7 @@
 const {
   calcularDiferenciaPorcentual,
   calcularNivelOportunidad,
+  calcularViabilidad,
 } = require('../../app_server/utils/oportunidadCalculator');
 
 describe('calcularDiferenciaPorcentual', () => {
@@ -87,5 +88,38 @@ describe('calcularNivelOportunidad', () => {
 
   test('devuelve null si ambos valores son null', () => {
     expect(calcularNivelOportunidad(null, null)).toBeNull();
+  });
+});
+
+describe('calcularViabilidad', () => {
+  test('devuelve BAJA si el riesgo legal es ALTO', () => {
+    expect(calcularViabilidad('ALTO', 'ALTO')).toBe('BAJA');
+    expect(calcularViabilidad('MEDIO', 'ALTO')).toBe('BAJA');
+    expect(calcularViabilidad('BAJO', 'ALTO')).toBe('BAJA');
+    expect(calcularViabilidad(null, 'ALTO')).toBe('BAJA');
+  });
+
+  test('devuelve ALTA si el nivel de oportunidad es ALTO y riesgo no es ALTO', () => {
+    expect(calcularViabilidad('ALTO', 'MEDIO')).toBe('ALTA');
+    expect(calcularViabilidad('ALTO', 'BAJO')).toBe('ALTA');
+  });
+
+  test('devuelve ALTA si el nivel de oportunidad es MEDIO y riesgo no es ALTO', () => {
+    expect(calcularViabilidad('MEDIO', 'MEDIO')).toBe('ALTA');
+    expect(calcularViabilidad('MEDIO', 'BAJO')).toBe('ALTA');
+  });
+
+  test('devuelve MEDIA si el nivel de oportunidad es BAJO y el riesgo es BAJO', () => {
+    expect(calcularViabilidad('BAJO', 'BAJO')).toBe('MEDIA');
+  });
+
+  test('devuelve BAJA si el nivel de oportunidad es BAJO y el riesgo no es BAJO', () => {
+    expect(calcularViabilidad('BAJO', 'MEDIO')).toBe('BAJA');
+  });
+
+  test('maneja fallbacks cuando no hay nivel de oportunidad', () => {
+    expect(calcularViabilidad(null, 'BAJO')).toBe('ALTA');
+    expect(calcularViabilidad(null, 'MEDIO')).toBe('MEDIA');
+    expect(calcularViabilidad(null, null)).toBe('MEDIA');
   });
 });

@@ -37,7 +37,7 @@ async function runDailyPipeline(executionDate = new Date()) {
 }
 
 // Ejecución directa si se invoca desde CLI
-if (require.main === module) {
+if (require.main === module || global.__TEST_CLI__) {
     runDailyPipeline().then(process.exit);
 }
 

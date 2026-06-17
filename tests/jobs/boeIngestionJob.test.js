@@ -72,4 +72,57 @@ describe('runIngestion', () => {
         await expect(runIngestion(deps, new Date('2026-03-16')))
             .rejects.toThrow('Fallo de red');
     });
+
+    it('debe usar la fecha por defecto (hoy) si no se le pasa parámetro', async () => {
+        mockIngestionController.runDailyIngestion.mockResolvedValue(true);
+        const result = await runIngestion(deps);
+        expect(result).toBe(0);
+    });
+
+    it('debe ejecutar la ingesta si se invoca desde CLI', async () => {
+        const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {});
+        global.__TEST_CLI__ = true;
+
+        jest.isolateModules(() => {
+            require('../../app_server/jobs/boeIngestionJob');
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(mockExit).toHaveBeenCalledWith(0);
+
+        delete global.__TEST_CLI__;
+        mockExit.mockRestore();
+    });
+
+    it('debe registrar error y salir con 1 si la ingesta falla en modo CLI', async () => {
+        const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {});
+        
+        // Mock container to reject runDailyIngestion
+        const mockContainer = require('../../app_server/config/container');
+        const depsMocked = mockContainer();
+        depsMocked.ingestionController.runDailyIngestion = jest.fn().mockRejectedValue(new Error('CLI Ingestion Failure'));
+
+        global.__TEST_CLI__ = true;
+
+        jest.isolateModules(() => {
+            require('../../app_server/jobs/boeIngestionJob');
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(mockExit).toHaveBeenCalledWith(1);
+
+        delete global.__TEST_CLI__;
+        mockExit.mockRestore();
+    });
+});
+
+// Mock container dependency
+jest.mock('../../app_server/config/container', () => {
+    const mockIngController = { runDailyIngestion: jest.fn().mockResolvedValue(true) };
+    return () => ({
+        logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+        ingestionController: mockIngController
+    });
 });

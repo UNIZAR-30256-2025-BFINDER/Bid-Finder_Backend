@@ -12,7 +12,7 @@ const deps = buildContainer();
 const seedingController = createSeedingController(deps.ingestionController, deps.logger);
 
 // Recepción y validación de argumentos al ejecutar desde terminal
-if (require.main === module) {
+if (require.main === module || global.__TEST_CLI__) {
     const args = process.argv.slice(2);
     // Por defecto retrocede 3 días si no se especifica
     const daysToSeed = args.length > 0 ? parseInt(args[0], 10) : 3;

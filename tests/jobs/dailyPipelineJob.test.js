@@ -66,4 +66,27 @@ describe("dailyPipelineJob — orquestación del pipeline diario", () => {
         expect(mockRunWorker).not.toHaveBeenCalled();
         expect(result).toBe(1);
     });
+
+    test("debe usar la fecha de hoy por defecto si no se le pasa parámetro", async () => {
+        const result = await runDailyPipeline();
+        expect(mockRunIngestion).toHaveBeenCalledTimes(1);
+        expect(result).toBe(0);
+    });
+
+    test("ejecución CLI directa", async () => {
+        const mockExit = jest.spyOn(process, "exit").mockImplementation(() => {});
+
+        global.__TEST_CLI__ = true;
+
+        jest.isolateModules(() => {
+            require("../../app_server/jobs/dailyPipelineJob");
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(mockExit).toHaveBeenCalledWith(0);
+
+        delete global.__TEST_CLI__;
+        mockExit.mockRestore();
+    });
 });
