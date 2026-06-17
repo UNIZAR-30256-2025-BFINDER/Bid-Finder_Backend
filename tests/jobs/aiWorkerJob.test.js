@@ -69,7 +69,6 @@ describe('AI Worker — test de integración (multi-subasta)', () => {
             rawXml: '<test></test>',
         });
 
-        // AI now returns { subastas: [...] } or { lotes: [...] } format
         mockExtraer.mockResolvedValue({
             subastas: [{
                 numero_lote: 1,
@@ -86,9 +85,6 @@ describe('AI Worker — test de integración (multi-subasta)', () => {
         expect(subastaFinal.estado_ia).toBe('PROCESADO');
         expect(subastaFinal.titulo_resumido).toBe('Piso en Madrid');
         expect(subastaFinal.precio_salida).toBe(100000);
-        expect(subastaFinal.valor_tasacion).toBe(150000);
-        expect(subastaFinal.diferencia_porcentual_oportunidad).toBe(-33.33);
-        expect(subastaFinal.nivel_oportunidad).toBe('MEDIO');
 
         const originalDeleted = await Subasta.findOne({ id: 'TEST-123' });
         expect(originalDeleted).toBeNull();

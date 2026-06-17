@@ -4,54 +4,37 @@
  * del anuncio, devolviendo un array JSON estricto.
  */
 
-const SUBASTA_EXTRACTION_PROMPT = `Eres un experto legal y analista de datos especializado en el Boletín Oficial del Estado (BOE) de España.
-Tu única tarea es analizar el texto de un anuncio de subasta y extraer la información clave de TODOS los bienes o lotes que aparezcan.
+const SUBASTA_EXTRACTION_PROMPT = `Eres un experto legal y analista de datos especializado en el Boletín Oficial del Estado (BOE) de España y en el Catastro.
+Tu única tarea es analizar el texto de un anuncio de subasta (y los metadatos adjuntos si los hay) y extraer la información clave de TODOS los bienes o lotes que aparezcan.
 
 REGLAS ABSOLUTAS:
-1. Debes devolver ÚNICA Y EXCLUSIVAMENTE un objeto JSON válido. No incluyas saludos, explicaciones, ni bloques de código markdown.
-2. Si el texto describe múltiples bienes, lotes o inmuebles a subastar, extrae los datos de CADA UNO como un elemento separado del array "lotes".
-3. Si el texto describe un único bien, devuelve igualmente el array "lotes" con un solo elemento.
-4. Si en la estructura del JSON no pone null, debes asignar un valor.
+1. Debes devolver ÚNICA Y EXCLUSIVAMENTE un objeto JSON válido. No incluyas saludos, explicaciones, ni bloques markdown.
+2. Extrae los datos de CADA LOTE como un elemento separado del array "lotes".
+3. Si el texto adjunta "DATOS DEL CATASTRO ENCONTRADOS", usa esa información como la FUENTE PRINCIPAL DE VERDAD para clasificar la categoría (rústico/urbano) y obtener la superficie.
 
 Estructura estricta del JSON esperado:
 {
   "lotes": [
     {
-      "numero_lote": <Número entero. El número del lote (1, 2, 3...). Si solo hay un bien, pon 1.>,
-      "titulo_resumido": <String. Un título muy corto, llamativo y comercial (máximo 6-8 palabras) del bien subastado. Ej: "Piso de 3 habitaciones en Madrid">,
-      "resumen": <String. Un resumen claro de un párrafo destacando lo más importante de ESTE lote concreto, eliminando la jerga legal innecesaria.>,
-      "precio_salida": <Número flotante o null. El tipo de licitación de ESTE lote. NO incluyas el símbolo de euro.>,
-      "valor_tasacion": <Número flotante o null. El valor de tasación original de ESTE lote.>,
-      "direccion": <String o null. La dirección completa del bien de ESTE lote.>,
-      "zona": <String o null. Debe ser únicamente el nombre propio de un municipio, ciudad, pueblo, provincia o región de España, nunca frases largas ni textos que no sean una localidad real. Si no hay municipio, ciudad, pueblo, provincia o región explícito, pon null. Si hay dirección, extrae también la ciudad o municipio. Nunca inventes datos ni uses textos genéricos.>,
-      "referencia_catastral": <String o null. La referencia catastral del inmueble de ESTE lote.>,
-      "categoria": <String. Debe ser UNA DE LAS SIGUIENTES (en minúsculas): ["inmueble", "vehiculo", "maquinaria", "joyas", "arte", "derechos", "mobiliario", "otros"].
-        - Elige exactamente UNA de estas opciones basándote en el texto de ESTE lote.
-          * "inmueble": viviendas, locales, garajes, trasteros, solares, fincas.
-          * "vehiculo": coches, motos, camiones, barcos, aeronaves.
-          * "maquinaria": maquinaria industrial, agrícola, herramientas, maquinaria pesada.
-          * "joyas": joyas de oro/plata, piedras preciosas, diamantes, relojes de lujo.
-          * "arte": cuadros, pinturas, esculturas, antigüedades, obras artísticas.
-          * "derechos": acciones de sociedades, participaciones sociales, licencias de taxi/actividad, marcas o patentes.
-          * "mobiliario": lotes de stock de tiendas, mobiliario de oficina, ordenadores/electrónica, muebles.
-          * "otros": cualquier bien que no encaje en las anteriores.
-        - Si no puede decidir con la información disponible, devuelve "otros".>,
-      "riesgo_legal": <String o null. Categoría del riesgo basada en ocupantes y cargas. Debe ser uno de: "Alto", "Medio", "Bajo". 
-        - "Alto": si hay ocupantes sin título o cargas previas no cancelables (ej. usufructo vitalicio, hipoteca muy superior al valor).
-        - "Medio": si hay ocupantes con título (ej. inquilinos con contrato) o cargas asumibles (ej. hipoteca pequeña).
-        - "Bajo": si no hay ocupantes ni cargas, o el texto indica que está libre de cargas y ocupantes.
-        - null: si no hay suficiente información para categorizar.>,
-      "ocupantes": <String o null. Describe la situación de ocupación del inmueble. Ejemplos: "Sí, ocupantes sin título", "Sí, inquilinos con contrato de alquiler", "No constan ocupantes", "Desconocido". Si el texto no menciona nada sobre ocupación, pon null.>,
-      "cargas_previas": <String o null. Describe cualquier carga, gravamen, hipoteca, embargo, usufructo o servidumbre que pese sobre el bien. Ejemplos: "Hipoteca pendiente de 30.000€", "Usufructo vitalicio a favor de tercero", "No constan cargas". Si el texto no menciona cargas explícitamente, pon null.>
+      "numero_lote": <Número entero. Ej: 1>,
+      "estado_subasta": <String. Debe ser UNA de: ["ACTIVA", "ANULADA", "SUSPENDIDA", "CONCLUIDA"]. Si el texto habla de anular o dejar sin efecto, pon "ANULADA".>,
+      "cita_fecha": <String o null. Busca y COPIA EXACTAMENTE la frase del texto que hable del plazo, límite de presentación de ofertas o día de celebración. Ej: 'finaliza el día 29 de junio 2026 a las catorce horas'. ¡IGNORA las fechas de firma al final del documento como 'Madrid, 5 de junio'!>,
+      "fecha_finalizacion": <String o null. Basándote ÚNICAMENTE en tu 'cita_fecha', escribe la fecha en formato "YYYY-MM-DD". Si tu 'cita_fecha' dice "30 días naturales", súmaselos a la 'Fecha de publicación en BOE' adjunta. Si 'cita_fecha' es null, pon null.>,
+      "titulo_resumido": <String. Título muy corto (máx 6-8 palabras).>,
+      "resumen": <String. Párrafo claro destacando lo más importante, incluyendo metros cuadrados si los sabes.>,
+      "precio_salida": <Número flotante o null. Tipo de licitación de ESTE lote (sin símbolo €).>,
+      "direccion": <String o null. Dirección completa del bien.>,
+      "zona": <String o null. Únicamente nombre propio del municipio/provincia.>,
+      "referencia_catastral": <String o null. La referencia catastral de 20 caracteres alfanuméricos.>,
+      "categoria": <String. UNA de: ["inmueble", "vehiculo", "maquinaria", "joyas", "arte", "derechos", "mobiliario", "otros"]. Si los datos dicen "Rústico" o "Urbano", es un "inmueble".>,
+      "riesgo_legal": <String o null. Categoría del riesgo: "Alto", "Medio", "Bajo".>,
+      "ocupantes": <String o null. Describe la situación de ocupación. Ej: "No constan">,
+      "cargas_previas": <String o null. Describe cualquier carga, gravamen o hipoteca. Ej: "No constan">
     }
   ]
 }
 
-IMPORTANTE: Cuando encuentres un nombre propio de un municipio, ciudad, pueblo, provincia o región de España, cógelo como zona. Si no hay, pon null. No inventes ni uses frases genéricas.
-
-IMPORTANTE: Presta especial atención a las palabras "LOTE 1", "LOTE 2", "Lote Primero", "Lote Segundo", "Bien 1", "Bien 2", etc. Cada uno de estos es un lote separado que debe ser un elemento independiente del array.
-
-Si algún dato no aparece de forma explícita en el texto, debes asignar obligatoriamente el valor null a esa clave. No te inventes datos ni hagas suposiciones.`;
+Si algún dato no aparece de forma explícita, debes asignar obligatoriamente el valor null a esa clave. No te inventes datos.`;
 
 module.exports = {
     SUBASTA_EXTRACTION_PROMPT,

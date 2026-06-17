@@ -46,15 +46,18 @@ function validarLote(data, defaultNumero = 1) {
 
     const CATEGORIAS = ["inmueble", "vehiculo", "maquinaria", "joyas", "arte", "derechos", "mobiliario", "otros"];
 
+    const ESTADOS_PERMITIDOS = ["ACTIVA", "ANULADA", "SUSPENDIDA", "CONCLUIDA"];
+
     // Definición de reglas de validación por campo
     const esquema = {
+        estado_subasta: (v) => v === null || (typeof v === "string" && ESTADOS_PERMITIDOS.includes(v.toUpperCase())),
+        fecha_finalizacion: (v) => typeof v === "string" || v === null,
         titulo_resumido: (v) => typeof v === "string" || v === null,
         resumen: (v) => typeof v === "string" || v === null,
         direccion: (v) => typeof v === "string" || v === null,
         categoria: (v) => v === null || (typeof v === "string" && CATEGORIAS.includes(v.toLowerCase())),
         referencia_catastral: (v) => typeof v === "string" || v === null,
         precio_salida: (v) => !isNaN(parseFloat(v)) || v === null,
-        valor_tasacion: (v) => !isNaN(parseFloat(v)) || v === null,
         zona: (v) => esZonaValida(v) || v === null,
         riesgo_legal: (v) => v === null || (typeof v === "string" && ["alto", "medio", "bajo"].includes(v.toLowerCase())),
         ocupantes: (v) => typeof v === "string" || v === null,

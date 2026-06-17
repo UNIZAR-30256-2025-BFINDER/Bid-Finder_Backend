@@ -1,5 +1,5 @@
 /**
- * @fileoverview Tests unitarios para aiResponseValidator (formato multi-subasta).
+ * @fileoverview Tests unitarios para aiResponseValidator
  */
 
 const {
@@ -9,13 +9,14 @@ const {
 
 const camposVaciosLote = {
     numero_lote: 1,
+    estado_subasta: null,
+    fecha_finalizacion: null,
     titulo_resumido: null,
     resumen: null,
     direccion: null,
     categoria: null,
     referencia_catastral: null,
     precio_salida: null,
-    valor_tasacion: null,
     zona: null,
     cargas_previas: null,
     ocupantes: null,
@@ -84,14 +85,12 @@ describe("validarDatosSubasta (multi-subasta)", () => {
 });
 
 describe("validarLote", () => {
-    it("convierte precio_salida y valor_tasacion a número float", () => {
+    it("convierte precio_salida a número float", () => {
         const result = validarLote({
             precio_salida: "150000.50",
-            valor_tasacion: "200000",
         });
 
         expect(result.precio_salida).toBe(150000.5);
-        expect(result.valor_tasacion).toBe(200000);
     });
 
     it("acepta precio_salida ya como número", () => {
@@ -110,12 +109,16 @@ describe("validarLote", () => {
             resumen: "Un resumen",
             direccion: "Calle Mayor 1",
             referencia_catastral: "1234567AB1234A0001ZZ",
+            fecha_finalizacion: "2026-07-15",
+            estado_subasta: "ACTIVA"
         });
 
         expect(result.titulo_resumido).toBe("Piso en Madrid");
         expect(result.resumen).toBe("Un resumen");
         expect(result.direccion).toBe("Calle Mayor 1");
         expect(result.referencia_catastral).toBe("1234567AB1234A0001ZZ");
+        expect(result.fecha_finalizacion).toBe("2026-07-15");
+        expect(result.estado_subasta).toBe("ACTIVA");
     });
 
     it("pone null en un campo de texto si el valor es un número (tipo incorrecto)", () => {
@@ -130,7 +133,6 @@ describe("validarLote", () => {
             direccion: null,
             referencia_catastral: null,
             precio_salida: null,
-            valor_tasacion: null,
             zona: null,
         });
         expect(result).toEqual(camposVaciosLote);

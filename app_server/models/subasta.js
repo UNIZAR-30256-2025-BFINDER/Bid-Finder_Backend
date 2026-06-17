@@ -52,7 +52,7 @@ const subastaSchema = new mongoose.Schema(
             default: Date.now,
         },
         fechaFinalizacion: {
-            type: Date,
+            type: String, 
             default: null,
             index: true,
         },

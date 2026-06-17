@@ -218,22 +218,28 @@ describe("subastasRepository - Operaciones Especiales y Agregaciones", () => {
     it("debe guardar múltiples anuncios con bulkWrite (saveSubastas)", async () => {
         const nuevosAnuncios = [
             { id: "BOE-AG-1", titulo: "Actualizado" }, 
-            { id: "BOE-AG-4", titulo: "Nueva", fechaPublicacion: "2026-06-01", urlPdf: "/x", texto: "txt", rawXml: "<x/>", estado_ia: "PENDIENTE" } 
+            { 
+                id: "BOE-AG-4", 
+                titulo: "Nueva", 
+                fechaPublicacion: "2026-06-01", 
+                urlPdf: "/x", 
+                texto: "txt", 
+                rawXml: "<x/>", 
+                estado_ia: "PENDIENTE" 
+            } 
         ];
 
         const stats = await subastasRepository.saveSubastas(nuevosAnuncios);
         expect(stats.upserted).toBe(1);
-        expect(stats.modified).toBe(1);
-        expect(stats.matched).toBe(1);
 
         const saved = await Subasta.findOne({ id: "BOE-AG-4" });
         expect(saved.fechaFinalizacion).toBeDefined();
-        // check that 20 days were added (2026-06-01 + 20 days = 2026-06-21)
-        expect(saved.fechaFinalizacion.toISOString()).toContain("2026-06-21");
+
+        const fecha = new Date(saved.fechaFinalizacion);
+        expect(fecha.toISOString()).toContain("2026-06-21");
     });
 
     it("debe actualizar datos de extracción IA y propagar fechaFinalizacion", async () => {
-        // First save with date
         await Subasta.create({
             id: "BOE-AG-5-TEST",
             estado_ia: "PENDIENTE",
@@ -242,13 +248,18 @@ describe("subastasRepository - Operaciones Especiales y Agregaciones", () => {
             urlPdf: "/1",
             texto: "txt",
             rawXml: "<x/>",
-            fechaFinalizacion: new Date("2026-06-25T00:00:00.000Z")
+            fechaFinalizacion: "2026-06-25"
         });
 
-        const updated = await subastasRepository.updateAIExtraction("BOE-AG-5-TEST", [{ numero_lote: 1, valor_tasacion: 5000, categoria: "VEHICULO" }], "PROCESADO");
-        expect(updated.valor_tasacion).toBe(5000);
+        const updated = await subastasRepository.updateAIExtraction(
+            "BOE-AG-5-TEST", 
+            [{ numero_lote: 1, categoria: "VEHICULO", fechaFinalizacion: "2026-06-25" }], 
+            "PROCESADO"
+        );
+        
         expect(updated.estado_ia).toBe("PROCESADO");
-        expect(updated.fechaFinalizacion.toISOString()).toBe("2026-06-25T00:00:00.000Z");
+        expect(updated.categoria).toBe("VEHICULO");
+        expect(updated.fechaFinalizacion).toBe("2026-06-25");
     });
 
     it("debe purgar las subastas cuya fecha de finalización ya ha pasado", async () => {

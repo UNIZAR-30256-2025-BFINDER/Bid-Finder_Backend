@@ -1,5 +1,5 @@
 /**
- * @fileoverview Pruebas unitarias para el servicio de Inteligencia Artificial (multi-subasta)
+ * @fileoverview Pruebas unitarias para el servicio de Inteligencia Artificial 
  */
 
 const createAiService = require("../../app_server/services/aiService");
@@ -16,13 +16,14 @@ describe("AI Service - Sistema de Fallback y Rotación", () => {
 
     const defaultValidadosLote = {
         numero_lote: 1,
+        estado_subasta: null,
+        fecha_finalizacion: null,
         titulo_resumido: null,
         resumen: null,
         categoria: null,
         direccion: null,
         referencia_catastral: null,
         precio_salida: null,
-        valor_tasacion: null,
         zona: null,
         cargas_previas: null,
         ocupantes: null,

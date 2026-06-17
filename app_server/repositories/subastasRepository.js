@@ -267,14 +267,26 @@ function createSubastasRepository() {
         }));
 
         const bulkOps = subastas.map(s => {
+            
+            const calcularFallback = (fechaPub) => {
+                if (!fechaPub) return null;
+                const y = parseInt(fechaPub.substring(0, 4), 10);
+                const m = parseInt(fechaPub.substring(4, 6), 10) - 1;
+                const d = parseInt(fechaPub.substring(6, 8), 10);
+                const dObj = new Date(y, m, d);
+                if (isNaN(dObj.getTime())) return null;
+                dObj.setDate(dObj.getDate() + 40); 
+                return dObj.toISOString().split('T')[0]; 
+            };
+
             const lotDoc = {
                 id: `${id}__L${s.numero_lote}`,
                 anuncio_id: id,
                 titulo: original.titulo,
                 fechaPublicacion: original.fechaPublicacion,
-                fechaFinalizacion: original.fechaFinalizacion && original.fechaFinalizacion.getFullYear() !== 1970
-                    ? original.fechaFinalizacion
-                    : calculateDefaultFinalizacion(original.fechaPublicacion),
+                
+                fechaFinalizacion: s.fechaFinalizacion || calcularFallback(original.fechaPublicacion),
+                
                 urlPdf: original.urlPdf,
                 texto: original.texto,
                 rawXml: original.rawXml,
@@ -287,9 +299,6 @@ function createSubastasRepository() {
                 resumen: s.resumen,
                 categoria: s.categoria,
                 precio_salida: s.precio_salida,
-                valor_tasacion: s.valor_tasacion,
-                diferencia_porcentual_oportunidad: s.diferencia_porcentual_oportunidad,
-                nivel_oportunidad: s.nivel_oportunidad,
                 viabilidad: s.viabilidad,
                 direccion: s.direccion,
                 zona: s.zona,
@@ -297,7 +306,8 @@ function createSubastasRepository() {
                 location: s.location,
                 riesgo_legal: s.riesgo_legal,
                 ocupantes: s.ocupantes,
-                cargas_previas: s.cargas_previas
+                cargas_previas: s.cargas_previas,
+                estado_subasta: s.estado_subasta 
             };
 
             return {

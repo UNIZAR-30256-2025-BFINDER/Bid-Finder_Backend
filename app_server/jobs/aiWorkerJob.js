@@ -13,6 +13,7 @@ const {
     calcularViabilidad,
 } = require("../utils/oportunidadCalculator");
 const { extractFallbackMunicipio } = require("../utils/textParser");
+const catastroService = require("../services/catastroService");
 
 const BATCH_SIZE = AI_WORKER.BATCH_SIZE;
 const DELAY_MS = AI_WORKER.DELAY_MS;
@@ -62,6 +63,7 @@ async function procesarSubasta(subastaItem, textoAnuncio, geoCodingService, logg
 
     return {
         ...subastaItem,
+        fechaFinalizacion: subastaItem.fecha_finalizacion || null,
         diferencia_porcentual_oportunidad,
         nivel_oportunidad,
         viabilidad,
@@ -94,14 +96,42 @@ async function runWorker(deps) {
         logger.info(`[AI Worker] (${i + 1}/${pendientes.length}) Analizando anuncio ${anuncio.id}...`);
 
         try {
+            let textoEnriquecido = anuncio.texto;
+
+            if (anuncio.fechaPublicacion && anuncio.fechaPublicacion.length === 8) {
+                const anio = anuncio.fechaPublicacion.substring(0, 4);
+                const mes = anuncio.fechaPublicacion.substring(4, 6);
+                const dia = anuncio.fechaPublicacion.substring(6, 8);
+                textoEnriquecido += `\n\n--- DATOS DE PUBLICACIÓN ---\n`;
+                textoEnriquecido += `Fecha de publicación en BOE: ${dia}-${mes}-${anio}\n`;
+            }
+
+            const matchCatastral = anuncio.texto.match(/[A-Z0-9]{20}/);
+            
+            if (matchCatastral) {
+                const refCatastralEncontrada = matchCatastral[0];
+                logger.info(`[AI Worker] Anuncio ${anuncio.id}: Posible Ref Catastral encontrada: ${refCatastralEncontrada}`);
+                
+                const datosCatastro = await catastroService.getExtendedInfo(refCatastralEncontrada);
+                
+                if (datosCatastro) {
+                    textoEnriquecido += `\n--- DATOS DEL CATASTRO ENCONTRADOS ---\n`;
+                    textoEnriquecido += `Clase: ${datosCatastro.clase || 'Desconocido'}\n`;
+                    textoEnriquecido += `Uso Principal: ${datosCatastro.usoPrincipal || 'Desconocido'}\n`;
+                    textoEnriquecido += `Superficie: ${datosCatastro.superficieConstruida || datosCatastro.superficieGrafica || 'Desconocido'} m2\n`;
+                    textoEnriquecido += `Año Construcción: ${datosCatastro.anoConstruccion || 'Desconocido'}\n`;
+                }
+            }
+
             const datosExtraidos = await aiService.extraerDatosSubasta(
-                anuncio.texto,
+                textoEnriquecido,
                 SUBASTA_EXTRACTION_PROMPT,
             );
 
             // datosExtraidos tiene el formato { subastas: [...] } gracias al validador
             const subastasRaw = datosExtraidos.subastas || [];
             logger.info(`[AI Worker] Anuncio ${anuncio.id}: IA detectó ${subastasRaw.length} subasta(s) individuales.`);
+            logger.info(`[AI Worker] Fechas extraídas: ${JSON.stringify(subastasRaw.map(s => ({ lote: s.numero_lote, cita_literal: s.cita_fecha, fecha_calculada: s.fecha_finalizacion }))) }`);
 
             // Procesar cada subasta (geocodificar + calcular oportunidad)
             const subastasProcesadas = [];

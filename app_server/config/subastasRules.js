@@ -33,6 +33,11 @@ const SumarioExtractor = {
         if (!nombreSeccion.includes('ANUNCIOS')) return false;
 
         const titulo = String(item.titulo || "").toUpperCase();
+
+        if (titulo.includes('CORRECCIÓN') || titulo.includes('ANULACIÓN') || titulo.includes('DEJA SIN EFECTO')) {
+            return false;
+        }
+        
         const esTituloSubasta = titulo.includes('SUBASTA');
         
         let esEpigrafeSubasta = false;
